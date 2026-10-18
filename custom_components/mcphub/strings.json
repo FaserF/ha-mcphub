@@ -9,6 +9,14 @@
           "api_key": "Bearer API Key",
           "default_group": "Default Tool Execution Group"
         }
+      },
+      "servers": {
+        "title": "Select MCP Servers to Map",
+        "description": "Discovered {server_count} MCP servers in MCPHub. Choose which servers to import as separate Home Assistant devices. Servers already covered by native integrations are unselected by default.",
+        "data": {
+          "auto_import_new": "Automatically import new servers in the future",
+          "enabled_servers": "Selected MCP Servers"
+        }
       }
     },
     "error": {
@@ -24,9 +32,12 @@
     "step": {
       "init": {
         "title": "MCPHub Options",
+        "description": "Configure polling intervals and manage which MCP servers are mapped into Home Assistant devices.",
         "data": {
           "poll_interval": "Status Update Interval (seconds)",
-          "default_group": "Default Tool Execution Group"
+          "default_group": "Default Tool Execution Group",
+          "auto_import_new": "Automatically import new servers in the future",
+          "enabled_servers": "Enabled MCP Servers"
         }
       }
     }

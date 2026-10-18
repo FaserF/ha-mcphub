@@ -9,6 +9,14 @@
           "api_key": "Bearer-API-Schlüssel",
           "default_group": "Standard-Routing-Gruppe"
         }
+      },
+      "servers": {
+        "title": "MCP-Server auswählen",
+        "description": "{server_count} MCP-Server in MCPHub gefunden. Wähle aus, welche als eigene Home Assistant Geräte importiert werden sollen. Server mit vorhandenen nativen Integrationen sind standardmäßig abgewählt.",
+        "data": {
+          "auto_import_new": "Neue Server zukünftig automatisch importieren",
+          "enabled_servers": "Ausgewählte MCP-Server"
+        }
       }
     },
     "error": {
@@ -24,9 +32,12 @@
     "step": {
       "init": {
         "title": "MCPHub Optionen",
+        "description": "Aktualisierungsintervalle einstellen und steuern, welche MCP-Server als Geräte in Home Assistant eingebunden sind.",
         "data": {
           "poll_interval": "Aktualisierungsintervall (Sekunden)",
-          "default_group": "Standard-Routing-Gruppe"
+          "default_group": "Standard-Routing-Gruppe",
+          "auto_import_new": "Neue Server zukünftig automatisch importieren",
+          "enabled_servers": "Aktivierte MCP-Server"
         }
       }
     }

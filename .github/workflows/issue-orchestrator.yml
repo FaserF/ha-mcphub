@@ -69,8 +69,8 @@ jobs:
               body += "To help solve this faster, please check the following:\n";
               body += "- [ ] Is your Home Assistant version up to date?\n";
               body += "- [ ] Are you using the latest version of this integration?\n";
-              body += "- [ ] Have you checked the [README](https://github.com/FaserF/ha-omniroute) and other open issues for similar issues or configuration tips?\n";
-              body += "- [ ] If applicable: Did you provide a **Diagnostic Download** (Settings -> Devices & Services -> OmniRoute -> 3 Dots -> Download diagnostics)?\n\n";
+              body += "- [ ] Have you checked the [README](https://github.com/FaserF/ha-mcphub) and other open issues for similar issues or configuration tips?\n";
+              body += "- [ ] If applicable: Did you provide a **Diagnostic Download** (Settings -> Devices & Services -> MCPHub -> 3 Dots -> Download diagnostics)?\n\n";
               body += "I will investigate this as soon as possible!";
             } else if (labels.includes('enhancement')) {
               body += "🚀 **Feature Request**\n\n";

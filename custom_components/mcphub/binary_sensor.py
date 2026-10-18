@@ -1,4 +1,4 @@
-"""Binary sensors for MCPHub integration."""
+"""Binary sensors for MCPHub integration with intelligent device grouping."""
 
 from __future__ import annotations
 
@@ -16,13 +16,34 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     ATTR_SERVERS,
+    CONF_AUTO_IMPORT_NEW,
+    CONF_ENABLED_SERVERS,
     DATA_COORDINATOR,
+    DEFAULT_AUTO_IMPORT_NEW,
     DEFAULT_MANUFACTURER,
     DEFAULT_MODEL,
     DEFAULT_NAME,
     DOMAIN,
+    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
+
+
+def _is_server_enabled(entry: ConfigEntry, server_name: str) -> bool:
+    """Check if server is enabled by user configuration."""
+    auto_import = entry.options.get(
+        CONF_AUTO_IMPORT_NEW,
+        entry.data.get(CONF_AUTO_IMPORT_NEW, DEFAULT_AUTO_IMPORT_NEW),
+    )
+    enabled_servers = entry.options.get(
+        CONF_ENABLED_SERVERS,
+        entry.data.get(CONF_ENABLED_SERVERS),
+    )
+    if enabled_servers is None:
+        return True
+    if server_name in enabled_servers:
+        return True
+    return auto_import and (server_name not in enabled_servers)
 
 
 async def async_setup_entry(
@@ -37,11 +58,12 @@ async def async_setup_entry(
         MCPHubGatewayConnectivitySensor(coordinator, entry)
     ]
 
-    # Add individual server connectivity binary sensors
+    # Add server online binary sensor under each server's device entity
     for server in coordinator.data.get("servers", []):
-        entities.append(
-            MCPHubServerConnectivitySensor(coordinator, entry, server.get("name", ""))
-        )
+        name = server.get("name", "")
+        if not name or not _is_server_enabled(entry, name):
+            continue
+        entities.append(MCPHubServerConnectivitySensor(coordinator, entry, name))
 
     async_add_entities(entities)
 
@@ -70,6 +92,7 @@ class MCPHubGatewayConnectivitySensor(
             "name": DEFAULT_NAME,
             "manufacturer": DEFAULT_MANUFACTURER,
             "model": DEFAULT_MODEL,
+            "configuration_url": entry.data.get("api_url"),
         }
 
     @property
@@ -94,17 +117,24 @@ class MCPHubServerConnectivitySensor(
         self._server_name = server_name
         self.entity_description = BinarySensorEntityDescription(
             key=f"connected_{server_name}",
-            name=f"{server_name} Online",
+            name="Online",
             device_class=BinarySensorDeviceClass.CONNECTIVITY,
         )
         self._attr_unique_id = f"{entry.entry_id}_server_online_{server_name}"
         self._attr_has_entity_name = True
+
+        server_data = self._get_server_data() or {}
+        cfg = server_data.get("config") or {}
+        vis_url = SERVER_VISIT_URLS.get(server_name) or cfg.get("url")
+
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
             "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.capitalize()}",
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": f"MCP Server ({server_name})",
+            "name": f"MCP {server_name.replace('-', ' ').title()}",
+            "manufacturer": "MCP Server Ecosystem",
+            "model": f"MCP {cfg.get('type', 'stdio').upper()} Service",
+            "sw_version": server_data.get("version", "1.0.0"),
+            "configuration_url": vis_url,
         }
 
     def _get_server_data(self) -> dict[str, Any] | None:

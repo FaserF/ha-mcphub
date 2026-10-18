@@ -90,8 +90,14 @@ class MCPHubClient:
                             f"HTTP {resp.status} checking MCPHub servers: {text[:200]}"
                         )
                     data = await resp.json()
-                    if isinstance(data, dict) and "servers" in data:
-                        return data["servers"]
+                    if isinstance(data, dict):
+                        if "servers" in data:
+                            return data["servers"]
+                        payload = data.get("data")
+                        if isinstance(payload, list):
+                            return payload
+                        if isinstance(payload, dict) and "servers" in payload:
+                            return payload["servers"]
                     if isinstance(data, list):
                         return data
                     return []

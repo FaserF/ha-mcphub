@@ -1,7 +1,8 @@
-"""Sensors for MCPHub integration."""
+"""Sensors for MCPHub integration with intelligent dynamic tool mapping."""
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -21,15 +22,21 @@ from .const import (
     ATTR_SERVERS,
     ATTR_TOTAL_SERVERS,
     ATTR_TOTAL_TOOLS,
+    CONF_AUTO_IMPORT_NEW,
+    CONF_ENABLED_SERVERS,
     DATA_COORDINATOR,
+    DEFAULT_AUTO_IMPORT_NEW,
     DEFAULT_MANUFACTURER,
     DEFAULT_MODEL,
     DEFAULT_NAME,
     DOMAIN,
+    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
 
-SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
+_LOGGER = logging.getLogger(__name__)
+
+GATEWAY_SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key=ATTR_CONNECTED_SERVERS,
         name="Connected Servers",
@@ -58,6 +65,23 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
 )
 
 
+def _is_server_enabled(entry: ConfigEntry, server_name: str) -> bool:
+    """Check if server is enabled by user configuration."""
+    auto_import = entry.options.get(
+        CONF_AUTO_IMPORT_NEW,
+        entry.data.get(CONF_AUTO_IMPORT_NEW, DEFAULT_AUTO_IMPORT_NEW),
+    )
+    enabled_servers = entry.options.get(
+        CONF_ENABLED_SERVERS,
+        entry.data.get(CONF_ENABLED_SERVERS),
+    )
+    if enabled_servers is None:
+        return True
+    if server_name in enabled_servers:
+        return True
+    return auto_import and (server_name not in enabled_servers)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -68,13 +92,49 @@ async def async_setup_entry(
 
     entities: list[SensorEntity] = [
         MCPHubGatewaySensor(coordinator, entry, description)
-        for description in SENSOR_TYPES
+        for description in GATEWAY_SENSOR_TYPES
     ]
 
-    # Add individual server status sensors
+    # Process all registered servers
     servers = coordinator.data.get("servers", [])
     for server in servers:
-        entities.append(MCPHubServerSensor(coordinator, entry, server.get("name", "")))
+        name = server.get("name", "")
+        if not name or not _is_server_enabled(entry, name):
+            continue
+
+        # Add the server's primary status & metadata sensor
+        entities.append(MCPHubServerSensor(coordinator, entry, name))
+
+        # Dynamically inspect tools and create sensors for zero-arg query/status tools
+        tools = server.get("tools", [])
+        for tool in tools:
+            if not isinstance(tool, dict):
+                continue
+            tool_name = tool.get("name", "")
+            req_params = (tool.get("inputSchema") or {}).get("required", [])
+            props = list((tool.get("inputSchema") or {}).get("properties", {}).keys())
+
+            # Detect query/read-only tools (e.g. status, overview, stats, list, info)
+            is_query = any(
+                term in tool_name.lower()
+                for term in (
+                    "status",
+                    "health",
+                    "stats",
+                    "overview",
+                    "info",
+                    "get_",
+                    "list_",
+                )
+            )
+
+            # If zero required arguments, we can expose it as a dynamic telemetry sensor
+            if (
+                (not req_params or len(req_params) == 0)
+                and (not props or len(props) == 0)
+                and is_query
+            ):
+                entities.append(MCPHubDynamicToolSensor(coordinator, entry, name, tool))
 
     async_add_entities(entities)
 
@@ -88,7 +148,7 @@ class MCPHubGatewaySensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
         entry: ConfigEntry,
         description: SensorEntityDescription,
     ) -> None:
-        """Initialize the sensor."""
+        """Initialize the gateway sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._entry = entry
@@ -99,6 +159,7 @@ class MCPHubGatewaySensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
             "name": DEFAULT_NAME,
             "manufacturer": DEFAULT_MANUFACTURER,
             "model": DEFAULT_MODEL,
+            "configuration_url": entry.data.get("api_url"),
         }
 
     @property
@@ -110,7 +171,7 @@ class MCPHubGatewaySensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
 
 
 class MCPHubServerSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
-    """Representation of an individual MCP server status & tools sensor."""
+    """Primary sensor for an MCP server device."""
 
     def __init__(
         self,
@@ -118,20 +179,27 @@ class MCPHubServerSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
         entry: ConfigEntry,
         server_name: str,
     ) -> None:
-        """Initialize the server sensor."""
+        """Initialize the server status sensor."""
         super().__init__(coordinator)
         self._server_name = server_name
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_server_{server_name}"
         self._attr_has_entity_name = True
-        self._attr_name = f"Server {server_name}"
+        self._attr_name = "Connection Status"
         self._attr_icon = "mdi:server-network-outline"
+
+        server_data = self._get_server_data() or {}
+        cfg = server_data.get("config") or {}
+        vis_url = SERVER_VISIT_URLS.get(server_name) or cfg.get("url")
+
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
             "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.capitalize()}",
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": f"MCP Server ({server_name})",
+            "name": f"MCP {server_name.replace('-', ' ').title()}",
+            "manufacturer": "MCP Server Ecosystem",
+            "model": f"MCP {cfg.get('type', 'stdio').upper()} Service",
+            "sw_version": server_data.get("version", "1.0.0"),
+            "configuration_url": vis_url,
         }
 
     def _get_server_data(self) -> dict[str, Any] | None:
@@ -154,11 +222,69 @@ class MCPHubServerSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
         """Return detailed attributes for this server."""
         data = self._get_server_data() or {}
         tools = data.get("tools", [])
+        cfg = data.get("config") or {}
         return {
             "version": data.get("version"),
             "enabled": data.get("enabled", True),
             "tool_count": len(tools) if isinstance(tools, list) else 0,
-            "transport_type": (data.get("config") or {}).get("type", "unknown"),
-            "description": (data.get("config") or {}).get("description"),
+            "transport_type": cfg.get("type", "unknown"),
+            "description": cfg.get("description"),
+            "command": cfg.get("command"),
             "error": data.get("error"),
+        }
+
+
+class MCPHubDynamicToolSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
+    """Dynamic sensor reflecting zero-argument query tool status."""
+
+    def __init__(
+        self,
+        coordinator: MCPHubCoordinator,
+        entry: ConfigEntry,
+        server_name: str,
+        tool: dict[str, Any],
+    ) -> None:
+        """Initialize the dynamic tool sensor."""
+        super().__init__(coordinator)
+        self._server_name = server_name
+        self._tool = tool
+        raw_name = tool.get("name", "")
+        # Clean prefix: openwrt-openwrt_get_router_status -> get_router_status
+        short_name = (
+            raw_name.split("-")[-1]
+            .replace(f"{server_name}_", "")
+            .replace("_", " ")
+            .title()
+        )
+
+        self._attr_unique_id = f"{entry.entry_id}_{server_name}_dyn_{raw_name}"
+        self._attr_has_entity_name = True
+        self._attr_name = short_name
+        self._attr_icon = "mdi:information-outline"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
+            "via_device": (DOMAIN, entry.entry_id),
+            "name": f"MCP {server_name.replace('-', ' ').title()}",
+            "manufacturer": "MCP Server Ecosystem",
+        }
+
+    @property
+    def native_value(self) -> str:
+        """Return available if server is connected."""
+        if not self.coordinator.data:
+            return "unknown"
+        for server in self.coordinator.data.get(ATTR_SERVERS, []):
+            if server.get("name") == self._server_name:
+                return "Ready" if server.get("status") == "connected" else "Offline"
+        return "Offline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return tool documentation and schema."""
+        return {
+            "tool_name": self._tool.get("name"),
+            "description": self._tool.get("description"),
+            "required_parameters": (self._tool.get("inputSchema") or {}).get(
+                "required", []
+            ),
         }

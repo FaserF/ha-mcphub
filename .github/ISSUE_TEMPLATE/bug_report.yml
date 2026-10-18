@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug with the OmniRoute Home Assistant integration
+description: Report a bug with the MCPHub Home Assistant integration
 title: '[Bug]: '
 labels: ['bug', 'triage']
 assignees:
@@ -9,15 +9,15 @@ body:
     attributes:
       value: |
         ## Before submitting
-        - 🔍 Search [existing issues](https://github.com/FaserF/ha-omniroute/issues) to avoid duplicates
-        - 📖 Check the [Documentation Site](https://faserf.github.io/ha-omniroute/)
-        - 🔗 View the integration: [![Open your Home Assistant instance and show the omniroute integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=omniroute)
+        - 🔍 Search [existing issues](https://github.com/FaserF/ha-mcphub/issues) to avoid duplicates
+        - 📖 Check the [Documentation Site](https://faserf.github.io/ha-mcphub/)
+        - 🔗 View the integration: [![Open your Home Assistant instance and show the mcphub integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=mcphub)
 
   - type: input
     id: integration_version
     attributes:
       label: Integration Version
-      description: Which version of ha-omniroute are you running? (HACS or integration page)
+      description: Which version of ha-mcphub are you running? (HACS or integration page)
       placeholder: e.g. v0.3.6
     validations:
       required: true
@@ -47,10 +47,10 @@ body:
       required: true
 
   - type: input
-    id: omniroute_version
+    id: mcphub_version
     attributes:
-      label: OmniRoute Server Version
-      description: Which version of OmniRoute Gateway is running?
+      label: MCPHub Server Version
+      description: Which version of MCPHub Gateway is running?
       placeholder: e.g. 1.0.0
     validations:
       required: false
@@ -89,7 +89,7 @@ body:
       label: Diagnostics
       description: |
         Please provide the diagnostic data of the integration.
-        Go to: **Settings -> Devices & Services -> OmniRoute -> 3 dots menu -> Download diagnostics**.
+        Go to: **Settings -> Devices & Services -> MCPHub -> 3 dots menu -> Download diagnostics**.
         Sensitive values are automatically redacted.
       render: json
     validations:
@@ -106,7 +106,7 @@ body:
         logger:
           default: warning
           logs:
-            custom_components.omniroute: debug
+            custom_components.mcphub: debug
         ```
       render: shell
     validations:

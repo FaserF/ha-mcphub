@@ -1,4 +1,4 @@
-"""Switches for MCPHub integration."""
+"""Switches for MCPHub integration with per-server control."""
 
 from __future__ import annotations
 
@@ -13,12 +13,32 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .client import MCPHubClient
 from .const import (
     ATTR_SERVERS,
+    CONF_AUTO_IMPORT_NEW,
+    CONF_ENABLED_SERVERS,
     DATA_CLIENT,
     DATA_COORDINATOR,
-    DEFAULT_MANUFACTURER,
+    DEFAULT_AUTO_IMPORT_NEW,
     DOMAIN,
+    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
+
+
+def _is_server_enabled(entry: ConfigEntry, server_name: str) -> bool:
+    """Check if server is enabled by user configuration."""
+    auto_import = entry.options.get(
+        CONF_AUTO_IMPORT_NEW,
+        entry.data.get(CONF_AUTO_IMPORT_NEW, DEFAULT_AUTO_IMPORT_NEW),
+    )
+    enabled_servers = entry.options.get(
+        CONF_ENABLED_SERVERS,
+        entry.data.get(CONF_ENABLED_SERVERS),
+    )
+    if enabled_servers is None:
+        return True
+    if server_name in enabled_servers:
+        return True
+    return auto_import and (server_name not in enabled_servers)
 
 
 async def async_setup_entry(
@@ -33,9 +53,10 @@ async def async_setup_entry(
     entities: list[SwitchEntity] = []
 
     for server in coordinator.data.get("servers", []):
-        entities.append(
-            MCPHubServerEnableSwitch(coordinator, client, entry, server.get("name", ""))
-        )
+        name = server.get("name", "")
+        if not name or not _is_server_enabled(entry, name):
+            continue
+        entities.append(MCPHubServerEnableSwitch(coordinator, client, entry, name))
 
     async_add_entities(entities)
 
@@ -61,12 +82,14 @@ class MCPHubServerEnableSwitch(CoordinatorEntity[MCPHubCoordinator], SwitchEntit
         )
         self._attr_unique_id = f"{entry.entry_id}_enable_{server_name}"
         self._attr_has_entity_name = True
+
+        vis_url = SERVER_VISIT_URLS.get(server_name)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
             "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.capitalize()}",
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": f"MCP Server ({server_name})",
+            "name": f"MCP {server_name.replace('-', ' ').title()}",
+            "manufacturer": "MCP Server Ecosystem",
+            "configuration_url": vis_url,
         }
 
     def _get_server_data(self) -> dict[str, Any] | None:
