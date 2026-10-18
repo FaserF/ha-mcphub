@@ -179,6 +179,8 @@ PLATFORMS: Final[list[Platform]] = [
     Platform.NUMBER,
     Platform.UPDATE,
     Platform.IMAGE,
+    Platform.MEDIA_PLAYER,
+    Platform.REMOTE,
 ]
 
 # Service definitions

@@ -118,7 +118,7 @@ class MockCoordinatorEntity(MockEntity):
     @property
     def available(self) -> bool:
         if self.coordinator and hasattr(self.coordinator, "last_update_success"):
-            return self.coordinator.last_update_success
+            return bool(self.coordinator.last_update_success)
         return True
 
 
@@ -270,6 +270,8 @@ mock_submodule("homeassistant.components.conversation")
 mock_submodule("homeassistant.components.text")
 mock_submodule("homeassistant.components.number")
 mock_submodule("homeassistant.components.update")
+mock_submodule("homeassistant.components.media_player")
+mock_submodule("homeassistant.components.remote")
 mock_submodule("homeassistant.util.dt")
 mock_submodule("homeassistant.helpers.device_registry")
 mock_submodule("homeassistant.helpers.entity_registry")
@@ -290,6 +292,8 @@ ha_const.Platform = types.SimpleNamespace(
     TEXT="text",
     NUMBER="number",
     UPDATE="update",
+    MEDIA_PLAYER="media_player",
+    REMOTE="remote",
 )
 ha_const.CONF_NAME = "name"
 ha_const.EntityCategory = types.SimpleNamespace(
@@ -525,6 +529,110 @@ upd_module.UpdateEntity = MockUpdateEntity
 upd_module.UpdateEntityDescription = MockEntityDescription
 upd_module.UpdateDeviceClass = types.SimpleNamespace(FIRMWARE="firmware")
 upd_module.UpdateEntityFeature = types.SimpleNamespace(INSTALL=1, PROGRESS=2)
+
+# Media Player module
+mp_module = sys.modules["homeassistant.components.media_player"]
+
+
+class MockMediaPlayerEntity(MockEntity):
+    _attr_state: Any = None
+    _attr_volume_level: float | None = None
+    _attr_is_volume_muted: bool | None = False
+    _attr_source: str | None = None
+    _attr_source_list: list[str] | None = None
+    _attr_supported_features: int = 0
+    _attr_app_id: str | None = None
+    _attr_app_name: str | None = None
+    _attr_available: bool = True
+
+    @property
+    def state(self) -> Any:
+        return self._attr_state
+
+    @property
+    def volume_level(self) -> float | None:
+        return self._attr_volume_level
+
+    @property
+    def is_volume_muted(self) -> bool | None:
+        return self._attr_is_volume_muted
+
+    @property
+    def source(self) -> str | None:
+        return self._attr_source
+
+    @property
+    def source_list(self) -> list[str] | None:
+        return self._attr_source_list
+
+    @property
+    def device_class(self) -> Any:
+        return getattr(self, "_attr_device_class", None)
+
+    @property
+    def supported_features(self) -> int:
+        return self._attr_supported_features
+
+    @property
+    def available(self) -> bool:
+        return self._attr_available
+
+    def async_write_ha_state(self) -> None:
+        pass
+
+
+mp_module.MediaPlayerEntity = MockMediaPlayerEntity
+mp_module.MediaPlayerEntityFeature = types.SimpleNamespace(
+    PAUSE=1,
+    PLAY=2,
+    STOP=4,
+    NEXT_TRACK=8,
+    PREVIOUS_TRACK=16,
+    VOLUME_SET=32,
+    VOLUME_STEP=64,
+    VOLUME_MUTE=128,
+    TURN_ON=256,
+    TURN_OFF=512,
+    SELECT_SOURCE=1024,
+)
+mp_module.MediaPlayerState = types.SimpleNamespace(
+    OFF="off",
+    ON="on",
+    PLAYING="playing",
+    PAUSED="paused",
+    IDLE="idle",
+    STANDBY="standby",
+)
+mp_module.MediaPlayerDeviceClass = types.SimpleNamespace(
+    TV="tv",
+    RECEIVER="receiver",
+)
+
+# Remote module
+remote_module = sys.modules["homeassistant.components.remote"]
+
+
+class MockRemoteEntity(MockEntity):
+    _attr_is_on: bool = False
+    _attr_available: bool = True
+
+    @property
+    def is_on(self) -> bool:
+        return self._attr_is_on
+
+    @property
+    def available(self) -> bool:
+        return self._attr_available
+
+    def async_write_ha_state(self) -> None:
+        pass
+
+
+remote_module.RemoteEntity = MockRemoteEntity
+remote_module.RemoteEntityFeature = types.SimpleNamespace(
+    LEARN_COMMAND=1,
+    DELETE_COMMAND=2,
+)
 
 # dt_util
 dt_module = sys.modules["homeassistant.util.dt"]
