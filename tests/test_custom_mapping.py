@@ -146,6 +146,7 @@ def test_printer_device_info_and_sensor_offline(mock_config_entry: MagicMock) ->
 
     # Uptime timestamp sensor when online -> parsed to datetime
     from datetime import datetime
+
     online_payload["booted_at"] = "2026-10-18T14:30:00Z"
     uptime_online_sensor = MCPHubMappedSensor(
         coordinator, mock_config_entry, printer_map, uptime_entity_cfg, online_payload
@@ -155,6 +156,7 @@ def test_printer_device_info_and_sensor_offline(mock_config_entry: MagicMock) ->
 
     # Binary sensor (media_empty / cover_open)
     from custom_components.mcphub.binary_sensor import MCPHubMappedBinarySensor
+
     paper_cfg = next(e for e in printer_map.entities if e.key == "media_empty")
     paper_offline = MCPHubMappedBinarySensor(
         coordinator, mock_config_entry, printer_map, paper_cfg, offline_payload

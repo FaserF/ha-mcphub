@@ -76,47 +76,80 @@ DEFAULT_ADB_MAPPING_DICT: dict[str, Any] = {
             "actions": {
                 "turn_on": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "WAKEUP"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "WAKEUP",
+                    },
                 },
                 "turn_off": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "SLEEP"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "SLEEP",
+                    },
                 },
                 "play": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PLAY"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "MEDIA_PLAY",
+                    },
                 },
                 "pause": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PAUSE"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "MEDIA_PAUSE",
+                    },
                 },
                 "play_pause": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PLAY_PAUSE"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "MEDIA_PLAY_PAUSE",
+                    },
                 },
                 "stop": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_STOP"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "MEDIA_STOP",
+                    },
                 },
                 "next_track": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_NEXT"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "MEDIA_NEXT",
+                    },
                 },
                 "previous_track": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PREVIOUS"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "MEDIA_PREVIOUS",
+                    },
                 },
                 "volume_up": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "VOLUME_UP"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "VOLUME_UP",
+                    },
                 },
                 "volume_down": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "VOLUME_DOWN"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "VOLUME_DOWN",
+                    },
                 },
                 "volume_mute": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "VOLUME_MUTE"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "VOLUME_MUTE",
+                    },
                 },
                 "select_source": {
                     "tool": "adb_app_launch",
@@ -134,11 +167,17 @@ DEFAULT_ADB_MAPPING_DICT: dict[str, Any] = {
             "actions": {
                 "turn_on": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "WAKEUP"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "WAKEUP",
+                    },
                 },
                 "turn_off": {
                     "tool": "adb_keyevent",
-                    "args_template": {"device": "{{ device.serial }}", "keycode": "SLEEP"},
+                    "args_template": {
+                        "device": "{{ device.serial }}",
+                        "keycode": "SLEEP",
+                    },
                 },
                 "send_command": {
                     "tool": "adb_keyevent",

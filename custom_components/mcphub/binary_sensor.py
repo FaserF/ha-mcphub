@@ -287,4 +287,3 @@ class MCPHubMappedBinarySensor(
             self._device_data.update(target_dev)
             self._update_state()
             self.async_write_ha_state()
-

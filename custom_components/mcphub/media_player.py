@@ -385,10 +385,15 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
                 await self._client.async_call_tool(
                     "android-adb",
                     "adb_keyevent",
-                    {"device": dev_ctx.get("serial", ""), "keycode": cmd_map[action_key]},
+                    {
+                        "device": dev_ctx.get("serial", ""),
+                        "keycode": cmd_map[action_key],
+                    },
                 )
             else:
-                _LOGGER.warning("Action %s not mapped for %s", action_key, self.entity_id)
+                _LOGGER.warning(
+                    "Action %s not mapped for %s", action_key, self.entity_id
+                )
                 return
         else:
             _LOGGER.warning("Action %s not mapped for %s", action_key, self.entity_id)
