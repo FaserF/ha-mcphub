@@ -33,7 +33,12 @@ def get_server_device_info(
 ) -> DeviceInfo:
     """Return DeviceInfo for an individual registered MCP server."""
     cfg = (server_data or {}).get("config") or {}
-    vis_url = SERVER_VISIT_URLS.get(server_name) or cfg.get("url")
+    base_url = str(entry.data.get(CONF_API_URL, "")).rstrip("/")
+    vis_url = (
+        SERVER_VISIT_URLS.get(server_name)
+        or cfg.get("url")
+        or (f"{base_url}/servers/{server_name}" if base_url else None)
+    )
     version_raw = (server_data or {}).get("version")
     version = str(version_raw).strip() if version_raw else None
     transport = str(cfg.get("type", "stdio")).upper()
