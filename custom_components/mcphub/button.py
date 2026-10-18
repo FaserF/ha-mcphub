@@ -13,18 +13,16 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .client import MCPHubClient
 from .const import (
+    ATTR_SERVERS,
     CONF_AUTO_IMPORT_NEW,
     CONF_ENABLED_SERVERS,
     DATA_CLIENT,
     DATA_COORDINATOR,
     DEFAULT_AUTO_IMPORT_NEW,
-    DEFAULT_MANUFACTURER,
-    DEFAULT_MODEL,
-    DEFAULT_NAME,
     DOMAIN,
-    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
+from .helpers import get_gateway_device_info, get_server_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +58,6 @@ async def async_setup_entry(
         MCPHubRefreshButton(coordinator, entry),
     ]
 
-    # Add reload and action buttons for each enabled server device
     for server in coordinator.data.get("servers", []):
         name = server.get("name", "")
         if not name or not _is_server_enabled(entry, name):
@@ -68,7 +65,6 @@ async def async_setup_entry(
 
         entities.append(MCPHubReloadServerButton(coordinator, client, entry, name))
 
-        # Dynamic tool execution buttons for zero-required-argument action tools
         tools = server.get("tools", [])
         for tool in tools:
             if not isinstance(tool, dict):
@@ -90,7 +86,6 @@ async def async_setup_entry(
                 )
             )
 
-            # If it's an action tool and requires zero arguments, add it as a native Button
             if (not req_params or len(req_params) == 0) and is_action:
                 entities.append(
                     MCPHubDynamicToolButton(coordinator, client, entry, name, tool)
@@ -118,13 +113,7 @@ class MCPHubClearCacheButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity)
         )
         self._attr_unique_id = f"{entry.entry_id}_clear_cache"
         self._attr_has_entity_name = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": DEFAULT_NAME,
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": DEFAULT_MODEL,
-            "configuration_url": entry.data.get("api_url"),
-        }
+        self._attr_device_info = get_gateway_device_info(entry)
 
     async def async_press(self) -> None:
         """Handle the button press."""
@@ -149,13 +138,7 @@ class MCPHubRefreshButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity):
         )
         self._attr_unique_id = f"{entry.entry_id}_refresh_status"
         self._attr_has_entity_name = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": DEFAULT_NAME,
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": DEFAULT_MODEL,
-            "configuration_url": entry.data.get("api_url"),
-        }
+        self._attr_device_info = get_gateway_device_info(entry)
 
     async def async_press(self) -> None:
         """Handle the button press."""
@@ -184,14 +167,17 @@ class MCPHubReloadServerButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntit
         self._attr_unique_id = f"{entry.entry_id}_reload_{server_name}"
         self._attr_has_entity_name = True
 
-        vis_url = SERVER_VISIT_URLS.get(server_name)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-            "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.replace('-', ' ').title()}",
-            "manufacturer": "MCP Server Ecosystem",
-            "configuration_url": vis_url,
-        }
+        server_data = self._get_server_data() or {}
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
+
+    def _get_server_data(self) -> dict[str, Any] | None:
+        """Get the latest data for this server."""
+        if not self.coordinator.data:
+            return None
+        for server in self.coordinator.data.get(ATTR_SERVERS, []):
+            if server.get("name") == self._server_name:
+                return server
+        return None
 
     async def async_press(self) -> None:
         """Reload the server and refresh coordinator."""
@@ -230,12 +216,18 @@ class MCPHubDynamicToolButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity
         )
         self._attr_unique_id = f"{entry.entry_id}_{server_name}_btn_{raw_name}"
         self._attr_has_entity_name = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-            "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.replace('-', ' ').title()}",
-            "manufacturer": "MCP Server Ecosystem",
-        }
+
+        server_data = self._get_server_data() or {}
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
+
+    def _get_server_data(self) -> dict[str, Any] | None:
+        """Get the latest data for this server."""
+        if not self.coordinator.data:
+            return None
+        for server in self.coordinator.data.get(ATTR_SERVERS, []):
+            if server.get("name") == self._server_name:
+                return server
+        return None
 
     async def async_press(self) -> None:
         """Execute the tool."""

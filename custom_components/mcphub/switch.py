@@ -19,9 +19,9 @@ from .const import (
     DATA_COORDINATOR,
     DEFAULT_AUTO_IMPORT_NEW,
     DOMAIN,
-    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
+from .helpers import get_server_device_info
 
 
 def _is_server_enabled(entry: ConfigEntry, server_name: str) -> bool:
@@ -83,14 +83,8 @@ class MCPHubServerEnableSwitch(CoordinatorEntity[MCPHubCoordinator], SwitchEntit
         self._attr_unique_id = f"{entry.entry_id}_enable_{server_name}"
         self._attr_has_entity_name = True
 
-        vis_url = SERVER_VISIT_URLS.get(server_name)
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-            "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.replace('-', ' ').title()}",
-            "manufacturer": "MCP Server Ecosystem",
-            "configuration_url": vis_url,
-        }
+        server_data = self._get_server_data() or {}
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
 
     def _get_server_data(self) -> dict[str, Any] | None:
         """Get the latest data for this server."""

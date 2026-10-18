@@ -26,13 +26,10 @@ from .const import (
     CONF_ENABLED_SERVERS,
     DATA_COORDINATOR,
     DEFAULT_AUTO_IMPORT_NEW,
-    DEFAULT_MANUFACTURER,
-    DEFAULT_MODEL,
-    DEFAULT_NAME,
     DOMAIN,
-    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
+from .helpers import get_gateway_device_info, get_server_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,7 +111,6 @@ async def async_setup_entry(
             req_params = (tool.get("inputSchema") or {}).get("required", [])
             props = list((tool.get("inputSchema") or {}).get("properties", {}).keys())
 
-            # Detect query/read-only tools (e.g. status, overview, stats, list, info)
             is_query = any(
                 term in tool_name.lower()
                 for term in (
@@ -128,7 +124,6 @@ async def async_setup_entry(
                 )
             )
 
-            # If zero required arguments, we can expose it as a dynamic telemetry sensor
             if (
                 (not req_params or len(req_params) == 0)
                 and (not props or len(props) == 0)
@@ -154,13 +149,7 @@ class MCPHubGatewaySensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_has_entity_name = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": DEFAULT_NAME,
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": DEFAULT_MODEL,
-            "configuration_url": entry.data.get("api_url"),
-        }
+        self._attr_device_info = get_gateway_device_info(entry)
 
     @property
     def native_value(self) -> Any:
@@ -189,18 +178,7 @@ class MCPHubServerSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
         self._attr_icon = "mdi:server-network-outline"
 
         server_data = self._get_server_data() or {}
-        cfg = server_data.get("config") or {}
-        vis_url = SERVER_VISIT_URLS.get(server_name) or cfg.get("url")
-
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-            "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.replace('-', ' ').title()}",
-            "manufacturer": "MCP Server Ecosystem",
-            "model": f"MCP {cfg.get('type', 'stdio').upper()} Service",
-            "sw_version": server_data.get("version", "1.0.0"),
-            "configuration_url": vis_url,
-        }
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
 
     def _get_server_data(self) -> dict[str, Any] | None:
         """Get the latest data for this server."""
@@ -249,7 +227,6 @@ class MCPHubDynamicToolSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity
         self._server_name = server_name
         self._tool = tool
         raw_name = tool.get("name", "")
-        # Clean prefix: openwrt-openwrt_get_router_status -> get_router_status
         short_name = (
             raw_name.split("-")[-1]
             .replace(f"{server_name}_", "")
@@ -261,12 +238,18 @@ class MCPHubDynamicToolSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity
         self._attr_has_entity_name = True
         self._attr_name = short_name
         self._attr_icon = "mdi:information-outline"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-            "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.replace('-', ' ').title()}",
-            "manufacturer": "MCP Server Ecosystem",
-        }
+
+        server_data = self._get_server_data() or {}
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
+
+    def _get_server_data(self) -> dict[str, Any] | None:
+        """Get the latest data for this server."""
+        if not self.coordinator.data:
+            return None
+        for server in self.coordinator.data.get(ATTR_SERVERS, []):
+            if server.get("name") == self._server_name:
+                return server
+        return None
 
     @property
     def native_value(self) -> str:

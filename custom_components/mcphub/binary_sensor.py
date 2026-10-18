@@ -20,13 +20,10 @@ from .const import (
     CONF_ENABLED_SERVERS,
     DATA_COORDINATOR,
     DEFAULT_AUTO_IMPORT_NEW,
-    DEFAULT_MANUFACTURER,
-    DEFAULT_MODEL,
-    DEFAULT_NAME,
     DOMAIN,
-    SERVER_VISIT_URLS,
 )
 from .coordinator import MCPHubCoordinator
+from .helpers import get_gateway_device_info, get_server_device_info
 
 
 def _is_server_enabled(entry: ConfigEntry, server_name: str) -> bool:
@@ -58,7 +55,6 @@ async def async_setup_entry(
         MCPHubGatewayConnectivitySensor(coordinator, entry)
     ]
 
-    # Add server online binary sensor under each server's device entity
     for server in coordinator.data.get("servers", []):
         name = server.get("name", "")
         if not name or not _is_server_enabled(entry, name):
@@ -87,13 +83,7 @@ class MCPHubGatewayConnectivitySensor(
         )
         self._attr_unique_id = f"{entry.entry_id}_connectivity"
         self._attr_has_entity_name = True
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": DEFAULT_NAME,
-            "manufacturer": DEFAULT_MANUFACTURER,
-            "model": DEFAULT_MODEL,
-            "configuration_url": entry.data.get("api_url"),
-        }
+        self._attr_device_info = get_gateway_device_info(entry)
 
     @property
     def is_on(self) -> bool:
@@ -124,18 +114,7 @@ class MCPHubServerConnectivitySensor(
         self._attr_has_entity_name = True
 
         server_data = self._get_server_data() or {}
-        cfg = server_data.get("config") or {}
-        vis_url = SERVER_VISIT_URLS.get(server_name) or cfg.get("url")
-
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-            "via_device": (DOMAIN, entry.entry_id),
-            "name": f"MCP {server_name.replace('-', ' ').title()}",
-            "manufacturer": "MCP Server Ecosystem",
-            "model": f"MCP {cfg.get('type', 'stdio').upper()} Service",
-            "sw_version": server_data.get("version", "1.0.0"),
-            "configuration_url": vis_url,
-        }
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
 
     def _get_server_data(self) -> dict[str, Any] | None:
         """Get the latest data for this server."""

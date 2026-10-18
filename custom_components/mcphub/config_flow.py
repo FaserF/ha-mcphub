@@ -6,9 +6,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -46,7 +50,7 @@ class MCPHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial connection step."""
         errors: dict[str, str] = {}
 
@@ -91,7 +95,7 @@ class MCPHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_servers(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Select which MCP servers to map into Home Assistant devices."""
         if user_input is not None:
             enabled_servers = user_input.get(CONF_ENABLED_SERVERS, [])
@@ -166,7 +170,7 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Manage global and per-server options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -211,7 +215,6 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
             server_options[name] = f"{name} ({tools_cnt} Tools){dup}"
 
         if not server_options:
-            # Fallback if no coordinator data currently loaded
             for name in current_enabled:
                 server_options[name] = name
 
