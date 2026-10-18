@@ -45,7 +45,6 @@ def get_server_device_info(
 
     device_kwargs: dict[str, Any] = {
         "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
-        "via_device": (DOMAIN, entry.entry_id),
         "name": f"MCP {server_name.replace('-', ' ').title()}",
         "manufacturer": "MCP Server Ecosystem",
         "model": f"MCP {transport} Service",
