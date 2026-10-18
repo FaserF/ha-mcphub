@@ -102,7 +102,7 @@ class MCPHubDynamicToolImage(CoordinatorEntity[MCPHubCoordinator], ImageEntity):
         """Initialize dynamic image entity."""
         CoordinatorEntity.__init__(self, coordinator)
         ImageEntity.__init__(self, hass)
-        self._client = client
+        self._mcphub_client = client
         self._server_name = server_name
         self._tool = tool
         self._image_bytes: bytes | None = None
@@ -135,7 +135,7 @@ class MCPHubDynamicToolImage(CoordinatorEntity[MCPHubCoordinator], ImageEntity):
         """Fetch image on demand from the MCP tool."""
         tool_name = self._tool.get("name", "")
         try:
-            res = await self._client.async_call_tool(
+            res = await self._mcphub_client.async_call_tool(
                 server=self._server_name,
                 tool_name=tool_name,
                 arguments={},
