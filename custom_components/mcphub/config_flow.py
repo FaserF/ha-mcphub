@@ -30,7 +30,7 @@ from .const import (
     DEFAULT_NAME,
     DEFAULT_POLL_INTERVAL,
     DOMAIN,
-    KNOWN_DUPLICATE_SERVERS,
+    detect_duplicate_conflict,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -120,18 +120,12 @@ class MCPHubConfigFlow(ConfigFlow, domain=DOMAIN):
             if not name:
                 continue
             tools_cnt = len(server.get("tools", []))
-            dup_notice = (
-                f" ⚠️ ({KNOWN_DUPLICATE_SERVERS[name]})"
-                if name in KNOWN_DUPLICATE_SERVERS
-                else ""
-            )
+            conflict_desc = detect_duplicate_conflict(name)
+            dup_notice = f" ⚠️ ({conflict_desc})" if conflict_desc else ""
             server_options[name] = f"{name} ({tools_cnt} Tools){dup_notice}"
 
             # Only select by default if NOT known duplicate and connected
-            if (
-                name not in KNOWN_DUPLICATE_SERVERS
-                and server.get("status") == "connected"
-            ):
+            if not conflict_desc and server.get("status") == "connected":
                 defaults.append(name)
 
         schema = vol.Schema(
@@ -207,11 +201,8 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
             if not name:
                 continue
             tools_cnt = len(s.get("tools", []))
-            dup = (
-                f" ⚠️ ({KNOWN_DUPLICATE_SERVERS[name]})"
-                if name in KNOWN_DUPLICATE_SERVERS
-                else ""
-            )
+            conflict_desc = detect_duplicate_conflict(name)
+            dup = f" ⚠️ ({conflict_desc})" if conflict_desc else ""
             server_options[name] = f"{name} ({tools_cnt} Tools){dup}"
 
         if not server_options:
