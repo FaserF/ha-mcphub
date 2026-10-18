@@ -36,7 +36,6 @@ KNOWN_DUPLICATE_SERVERS: Final[dict[str, str]] = {
     "home-assistant": "Native Home Assistant Instance",
     "homeassistant": "Native Home Assistant Instance",
     "ha": "Native Home Assistant Instance",
-
     # Official HA Integrations & Standard Services
     "github": "Official GitHub Integration",
     "cloudflare": "Official Cloudflare / Advanced Cloudflare Integration",
@@ -86,7 +85,6 @@ KNOWN_DUPLICATE_SERVERS: Final[dict[str, str]] = {
     "tradfri": "Official IKEA Trådfri Integration",
     "tuya": "Official Tuya / Smart Life Integration",
     "matter": "Official Matter Integration",
-
     # Custom & Specialized Integrations
     "omniroute": "ha-omniroute integration",
     "shielddns": "ha-shielddns integration",
@@ -112,6 +110,7 @@ def detect_duplicate_conflict(server_name: str) -> str | None:
             return description
 
     return None
+
 
 # Known web URLs for visit device actions
 SERVER_VISIT_URLS: Final[dict[str, str]] = {}
