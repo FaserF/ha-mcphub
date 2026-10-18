@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit MCPHub verbinden",
+        "description": "Gib die URL und den Bearer-API-Schlüssel an, um Home Assistant mit deinem MCPHub-Server zu verbinden.",
+        "data": {
+          "api_url": "MCPHub Basis-URL",
+          "api_key": "Bearer-API-Schlüssel",
+          "default_group": "Standard-Routing-Gruppe"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zu MCPHub fehlgeschlagen. Überprüfe die URL und Erreichbarkeit.",
+      "invalid_auth": "Ungültiger Bearer-API-Schlüssel.",
+      "unknown": "Unerwarteter Fehler aufgetreten."
+    },
+    "abort": {
+      "already_configured": "Dieser MCPHub-Endpunkt ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MCPHub Optionen",
+        "data": {
+          "poll_interval": "Aktualisierungsintervall (Sekunden)",
+          "default_group": "Standard-Routing-Gruppe"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "connected_servers": {
+        "name": "Verbundene Server"
+      },
+      "total_servers": {
+        "name": "Server gesamt"
+      },
+      "total_tools": {
+        "name": "Tools gesamt"
+      },
+      "latency_ms": {
+        "name": "Gateway-Latenz"
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Gateway verbunden"
+      }
+    },
+    "button": {
+      "clear_cache": {
+        "name": "Cache leeren"
+      },
+      "refresh_status": {
+        "name": "Status aktualisieren"
+      }
+    }
+  }
+}

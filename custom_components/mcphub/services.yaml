@@ -1,0 +1,65 @@
+call_tool:
+  name: Call MCP Tool
+  description: Execute any tool exposed by MCPHub servers or smart routing groups.
+  fields:
+    tool_name:
+      name: Tool Name
+      description: The qualified or unqualified tool name to invoke (e.g. finance-finance_get_quote or komodo-komodo_stack_list).
+      required: true
+      example: "finance-finance_get_quote"
+      selector:
+        text:
+    server:
+      name: Target Server or Group
+      description: Specific MCP server name or group alias (defaults to the configured default_group, e.g. $smart).
+      required: false
+      example: "finance"
+      selector:
+        text:
+    arguments:
+      name: Arguments
+      description: JSON key-value map of arguments required by the tool.
+      required: false
+      example: '{"symbol": "AAPL"}'
+      selector:
+        object:
+
+reload_server:
+  name: Reload Server
+  description: Instruct MCPHub to restart and reconnect a specific MCP server.
+  fields:
+    server_name:
+      name: Server Name
+      description: Identifier of the server to reload.
+      required: true
+      example: "openwrt"
+      selector:
+        text:
+
+toggle_server:
+  name: Toggle Server
+  description: Toggle an MCP server between enabled and disabled in MCPHub.
+  fields:
+    server_name:
+      name: Server Name
+      description: Identifier of the server to toggle.
+      required: true
+      example: "steam"
+      selector:
+        text:
+
+clear_cache:
+  name: Clear Cache
+  description: Flush all cached MCP tool schemas, discovery caches, and prompt definitions in MCPHub.
+
+discover_tools:
+  name: Discover Tools
+  description: Discover and list all tools exposed by an MCP server or routing group.
+  fields:
+    server_or_group:
+      name: Server or Group
+      description: Identifier of the server or group to inspect (defaults to $smart).
+      required: false
+      example: "$smart"
+      selector:
+        text:

@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to MCPHub",
+        "description": "Provide the URL and Bearer API key to connect Home Assistant to your MCPHub server.",
+        "data": {
+          "api_url": "MCPHub Base URL",
+          "api_key": "Bearer API Key",
+          "default_group": "Default Tool Execution Group"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to MCPHub. Check the URL and server connectivity.",
+      "invalid_auth": "Invalid Bearer API key.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This MCPHub endpoint is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MCPHub Options",
+        "data": {
+          "poll_interval": "Status Update Interval (seconds)",
+          "default_group": "Default Tool Execution Group"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "connected_servers": {
+        "name": "Connected Servers"
+      },
+      "total_servers": {
+        "name": "Total Servers"
+      },
+      "total_tools": {
+        "name": "Total Tools"
+      },
+      "latency_ms": {
+        "name": "Gateway Latency"
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Gateway Connected"
+      }
+    },
+    "button": {
+      "clear_cache": {
+        "name": "Clear Cache"
+      },
+      "refresh_status": {
+        "name": "Refresh Status"
+      }
+    }
+  }
+}

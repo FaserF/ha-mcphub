@@ -1,0 +1,14 @@
+{
+  "domain": "mcphub",
+  "name": "MCPHub Gateway",
+  "codeowners": [
+    "@FaserF"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/FaserF/ha-mcphub",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/FaserF/ha-mcphub/issues",
+  "requirements": [],
+  "version": "0.1.0b0"
+}
