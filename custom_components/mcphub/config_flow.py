@@ -21,6 +21,7 @@ from .const import (
     CONF_API_KEY,
     CONF_API_URL,
     CONF_AUTO_IMPORT_NEW,
+    CONF_CUSTOM_MAPPINGS,
     CONF_DEFAULT_GROUP,
     CONF_ENABLED_SERVERS,
     CONF_POLL_INTERVAL,
@@ -177,8 +178,23 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage global and per-server options."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            raw_mappings = user_input.get(CONF_CUSTOM_MAPPINGS)
+            if raw_mappings:
+                import json
+                try:
+                    parsed = json.loads(raw_mappings)
+                    if not isinstance(parsed, list):
+                        errors[CONF_CUSTOM_MAPPINGS] = "invalid_json_list"
+                    else:
+                        user_input[CONF_CUSTOM_MAPPINGS] = parsed
+                except Exception:
+                    errors[CONF_CUSTOM_MAPPINGS] = "invalid_json"
+
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
 
         current_poll = self.config_entry.options.get(
             CONF_POLL_INTERVAL,
@@ -196,6 +212,20 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
             CONF_ENABLED_SERVERS,
             self.config_entry.data.get(CONF_ENABLED_SERVERS, []),
         )
+
+        import json
+        from .custom_mapping import DEFAULT_MAPPINGS
+
+        current_mappings = self.config_entry.options.get(
+            CONF_CUSTOM_MAPPINGS,
+            self.config_entry.data.get(CONF_CUSTOM_MAPPINGS),
+        )
+        if current_mappings is None:
+            current_mappings_str = json.dumps(DEFAULT_MAPPINGS, indent=2)
+        elif isinstance(current_mappings, (list, dict)):
+            current_mappings_str = json.dumps(current_mappings, indent=2)
+        else:
+            current_mappings_str = str(current_mappings)
 
         # Get discovered servers from coordinator if available
         domain_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
@@ -228,7 +258,10 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
                 vol.Optional(
                     CONF_ENABLED_SERVERS, default=current_enabled
                 ): cv.multi_select(server_options),
+                vol.Optional(
+                    CONF_CUSTOM_MAPPINGS, default=current_mappings_str
+                ): cv.string,
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

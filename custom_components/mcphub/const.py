@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.const import Platform
 
@@ -25,6 +25,7 @@ CONF_DEFAULT_GROUP: Final = "default_group"
 CONF_POLL_INTERVAL: Final = "poll_interval"
 CONF_AUTO_IMPORT_NEW: Final = "auto_import_new"
 CONF_ENABLED_SERVERS: Final = "enabled_servers"
+CONF_CUSTOM_MAPPINGS: Final = "custom_mappings"
 
 DEFAULT_DEFAULT_GROUP: Final = "$smart"
 DEFAULT_POLL_INTERVAL: Final = 30
@@ -200,3 +201,5 @@ ATTR_TOOL_NAME: Final = "tool_name"
 ATTR_SERVER_NAME: Final = "server_name"
 ATTR_RESULT: Final = "result"
 ATTR_IS_ERROR: Final = "is_error"
+
+

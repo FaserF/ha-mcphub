@@ -189,3 +189,53 @@ async def test_media_player_control_actions(
         "adb_app_launch",
         {"app": "com.google.android.youtube.tv", "device": "192.168.1.85:5555"},
     )
+
+
+async def test_media_player_device_info_mac_linking(
+    mock_config_entry: MagicMock,
+    mock_client: MagicMock,
+    mock_adb_coordinator: MagicMock,
+) -> None:
+    """Test device info publishes real manufacturer, model, sw_version, and MAC connections for OpenWrt linking."""
+    from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, format_mac
+    if hasattr(format_mac, "side_effect"):
+        format_mac.side_effect = lambda m: str(m).lower()
+
+    tv_player = MCPHubAndroidMediaPlayer(
+        mock_adb_coordinator,
+        mock_client,
+        mock_config_entry,
+        {
+            "serial": "192.168.1.85:5555",
+            "model": "Smart_TV_Pro",
+            "manufacturer": "TCL",
+            "androidVersion": "Android 11",
+            "macs": ["dc:72:23:9d:ec:19", "34:51:80:d0:44:29"],
+            "state": "device",
+        },
+    )
+    dev_info = tv_player.device_info
+    assert dev_info["manufacturer"] == "TCL"
+    assert "Smart TV Pro" in dev_info["model"]
+    assert dev_info["sw_version"] == "Android 11"
+    assert (CONNECTION_NETWORK_MAC, "dc:72:23:9d:ec:19") in dev_info["connections"]
+
+    pixel_player = MCPHubAndroidMediaPlayer(
+        mock_adb_coordinator,
+        mock_client,
+        mock_config_entry,
+        {
+            "serial": "192.168.1.50:5555",
+            "model": "Pixel_10_Pro",
+            "manufacturer": "Google",
+            "androidVersion": "Android 17",
+            "macs": ["64:9d:38:c4:99:06"],
+            "state": "device",
+        },
+    )
+    pixel_info = pixel_player.device_info
+    assert pixel_info["manufacturer"] == "Google"
+    assert "Pixel 10 Pro" in pixel_info["model"]
+    assert pixel_info["sw_version"] == "Android 17"
+    assert (CONNECTION_NETWORK_MAC, "64:9d:38:c4:99:06") in pixel_info["connections"]
+

@@ -1,4 +1,4 @@
-"""Buttons for MCPHub integration with dynamic executable actions."""
+"""Buttons for MCPHub integration with dynamic executable actions and custom mapping support."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -22,6 +23,15 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import MCPHubCoordinator
+from .custom_mapping import (
+    DeviceMapping,
+    EntityMapping,
+    async_execute_mapping_action,
+    extract_device_info,
+    get_nested_value,
+    load_mappings_from_entry,
+    sync_device_registry,
+)
 from .helpers import get_gateway_device_info, get_server_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,14 +98,74 @@ async def async_setup_entry(
 
             if (not req_params or len(req_params) == 0) and is_action:
                 entities.append(
-                    MCPHubDynamicToolButton(coordinator, client, entry, name, tool)
+                    MCPHubDynamicToolButton(
+                        coordinator=coordinator,
+                        client=client,
+                        entry=entry,
+                        server_name=name,
+                        tool=tool,
+                    )
                 )
 
     async_add_entities(entities)
 
+    # Process dynamically mapped buttons (e.g. Printer power on & wait)
+    tracked_buttons: set[str] = set()
+
+    def _sync_mapped_buttons() -> None:
+        mappings = load_mappings_from_entry(entry)
+        btn_mappings = [
+            (m, e)
+            for m in mappings
+            if m.enabled
+            for e in m.entities
+            if e.platform == "button"
+        ]
+        if not btn_mappings:
+            return
+
+        mapped_data = coordinator.data.get("mapped_data", {})
+        new_buttons: list[ButtonEntity] = []
+
+        for mapping, entity_cfg in btn_mappings:
+            payload = mapped_data.get(mapping.id)
+            devices_to_process: list[dict[str, Any]] = []
+
+            if mapping.is_multi_device:
+                devices_to_process = list(
+                    get_nested_value(payload, mapping.devices_path, []) or []
+                )
+            elif isinstance(payload, dict):
+                devices_to_process = [payload]
+
+            for dev in devices_to_process:
+                ident_val = str(
+                    get_nested_value(dev, mapping.device_identifier_key, mapping.id)
+                )
+                clean_id = ident_val.replace(":", "_").replace(".", "_")
+                uid = f"{entry.entry_id}_{clean_id}_{entity_cfg.key}"
+
+                sync_device_registry(hass, entry, mapping, dev)
+
+                if uid in tracked_buttons:
+                    continue
+
+                tracked_buttons.add(uid)
+                new_buttons.append(
+                    MCPHubMappedButton(
+                        coordinator, client, entry, mapping, entity_cfg, dev
+                    )
+                )
+
+        if new_buttons:
+            async_add_entities(new_buttons)
+
+    _sync_mapped_buttons()
+    coordinator.async_add_listener(_sync_mapped_buttons)
+
 
 class MCPHubClearCacheButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity):
-    """Button to clear MCPHub tool and schema cache."""
+    """Button to clear MCPHub server caches."""
 
     def __init__(
         self,
@@ -103,12 +173,13 @@ class MCPHubClearCacheButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity)
         client: MCPHubClient,
         entry: ConfigEntry,
     ) -> None:
-        """Initialize the button."""
+        """Initialize clear cache button."""
         super().__init__(coordinator)
         self._client = client
+        self._entry = entry
         self.entity_description = ButtonEntityDescription(
             key="clear_cache",
-            name="Clear Cache",
+            name="Clear Tool Cache",
             icon="mdi:cached",
         )
         self._attr_unique_id = f"{entry.entry_id}_clear_cache"
@@ -116,32 +187,33 @@ class MCPHubClearCacheButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity)
         self._attr_device_info = get_gateway_device_info(entry)
 
     async def async_press(self) -> None:
-        """Handle the button press."""
+        """Clear cache in MCPHub."""
         await self._client.async_clear_cache()
         await self.coordinator.async_request_refresh()
 
 
 class MCPHubRefreshButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity):
-    """Button to trigger manual status refresh."""
+    """Button to force coordinator update."""
 
     def __init__(
         self,
         coordinator: MCPHubCoordinator,
         entry: ConfigEntry,
     ) -> None:
-        """Initialize the refresh button."""
+        """Initialize refresh button."""
         super().__init__(coordinator)
+        self._entry = entry
         self.entity_description = ButtonEntityDescription(
-            key="refresh_status",
-            name="Refresh Status",
+            key="refresh",
+            name="Refresh All",
             icon="mdi:refresh",
         )
-        self._attr_unique_id = f"{entry.entry_id}_refresh_status"
+        self._attr_unique_id = f"{entry.entry_id}_refresh"
         self._attr_has_entity_name = True
         self._attr_device_info = get_gateway_device_info(entry)
 
     async def async_press(self) -> None:
-        """Handle the button press."""
+        """Request immediate coordinator refresh."""
         await self.coordinator.async_request_refresh()
 
 
@@ -155,23 +227,23 @@ class MCPHubReloadServerButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntit
         entry: ConfigEntry,
         server_name: str,
     ) -> None:
-        """Initialize the reload button."""
+        """Initialize reload button."""
         super().__init__(coordinator)
         self._client = client
         self._server_name = server_name
         self.entity_description = ButtonEntityDescription(
             key=f"reload_{server_name}",
-            name="Restart & Reload",
+            name="Reload Server",
             icon="mdi:restart",
         )
-        self._attr_unique_id = f"{entry.entry_id}_reload_{server_name}"
+        self._attr_unique_id = f"{entry.entry_id}_server_reload_{server_name}"
         self._attr_has_entity_name = True
 
         server_data = self._get_server_data() or {}
         self._attr_device_info = get_server_device_info(entry, server_name, server_data)
 
     def _get_server_data(self) -> dict[str, Any] | None:
-        """Get the latest data for this server."""
+        """Get latest data for this server."""
         if not self.coordinator.data:
             return None
         for server in self.coordinator.data.get(ATTR_SERVERS, []):
@@ -180,13 +252,13 @@ class MCPHubReloadServerButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntit
         return None
 
     async def async_press(self) -> None:
-        """Reload the server and refresh coordinator."""
+        """Reload the server in MCPHub."""
         await self._client.async_reload_server(self._server_name)
         await self.coordinator.async_request_refresh()
 
 
 class MCPHubDynamicToolButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity):
-    """Dynamic button to execute a zero-argument action tool on this MCP server."""
+    """Button to invoke zero-argument action tools."""
 
     def __init__(
         self,
@@ -196,7 +268,7 @@ class MCPHubDynamicToolButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity
         server_name: str,
         tool: dict[str, Any],
     ) -> None:
-        """Initialize dynamic action button."""
+        """Initialize dynamic tool button."""
         super().__init__(coordinator)
         self._client = client
         self._server_name = server_name
@@ -209,19 +281,16 @@ class MCPHubDynamicToolButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity
             .title()
         )
 
-        self.entity_description = ButtonEntityDescription(
-            key=f"dyn_btn_{raw_name}",
-            name=short_name,
-            icon="mdi:play-circle-outline",
-        )
-        self._attr_unique_id = f"{entry.entry_id}_{server_name}_btn_{raw_name}"
+        self._attr_unique_id = f"{entry.entry_id}_{server_name}_button_{raw_name}"
         self._attr_has_entity_name = True
+        self._attr_name = short_name
+        self._attr_icon = "mdi:play"
 
         server_data = self._get_server_data() or {}
         self._attr_device_info = get_server_device_info(entry, server_name, server_data)
 
     def _get_server_data(self) -> dict[str, Any] | None:
-        """Get the latest data for this server."""
+        """Get latest data for this server."""
         if not self.coordinator.data:
             return None
         for server in self.coordinator.data.get(ATTR_SERVERS, []):
@@ -231,9 +300,55 @@ class MCPHubDynamicToolButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity
 
     async def async_press(self) -> None:
         """Execute the tool."""
-        tool_name = self._tool.get("name", "")
-        _LOGGER.info(
-            "Executing MCP tool %s on %s via button", tool_name, self._server_name
+        await self._client.async_call_tool(
+            self._server_name,
+            self._tool.get("name", ""),
+            {},
         )
-        await self._client.async_call_tool(self._server_name, tool_name, {})
         await self.coordinator.async_request_refresh()
+
+
+class MCPHubMappedButton(CoordinatorEntity[MCPHubCoordinator], ButtonEntity):
+    """Dynamically mapped button for custom MCP devices."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: MCPHubCoordinator,
+        client: MCPHubClient,
+        entry: ConfigEntry,
+        mapping: DeviceMapping,
+        entity_cfg: EntityMapping,
+        device_data: dict[str, Any],
+    ) -> None:
+        """Initialize mapped button."""
+        super().__init__(coordinator)
+        self._client = client
+        self._entry = entry
+        self._mapping = mapping
+        self._entity_cfg = entity_cfg
+        self._device_data = dict(device_data)
+
+        ident_val = str(
+            get_nested_value(device_data, mapping.device_identifier_key, mapping.id)
+        )
+        clean_id = ident_val.replace(":", "_").replace(".", "_")
+
+        self._attr_unique_id = f"{entry.entry_id}_{clean_id}_{entity_cfg.key}"
+        self._attr_name = entity_cfg.name
+        self._attr_icon = "mdi:power"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return dynamic device information extracted via custom mapping."""
+        return extract_device_info(self._entry, self._mapping, self._device_data)
+
+    async def async_press(self) -> None:
+        """Execute the mapped button action."""
+        action = self._entity_cfg.actions.get("press")
+        if action:
+            await async_execute_mapping_action(
+                self._client, action, self._mapping.server_name, self._device_data, {}
+            )
+            await self.coordinator.async_request_refresh()

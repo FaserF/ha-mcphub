@@ -1,7 +1,8 @@
-"""Media Player platform for MCPHub with Android ADB device integration."""
+"""Media Player platform for MCPHub with dynamic custom mapping support."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -21,77 +22,18 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .client import MCPHubClient
 from .const import DATA_CLIENT, DATA_COORDINATOR, DOMAIN
 from .coordinator import MCPHubCoordinator
+from .custom_mapping import (
+    DeviceMapping,
+    EntityMapping,
+    async_execute_mapping_action,
+    extract_device_info,
+    get_default_device_mappings,
+    get_nested_value,
+    load_mappings_from_entry,
+    sync_device_registry,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-SUPPORT_ANDROID_TV = (
-    MediaPlayerEntityFeature.PAUSE
-    | MediaPlayerEntityFeature.PLAY
-    | MediaPlayerEntityFeature.STOP
-    | MediaPlayerEntityFeature.NEXT_TRACK
-    | MediaPlayerEntityFeature.PREVIOUS_TRACK
-    | MediaPlayerEntityFeature.VOLUME_SET
-    | MediaPlayerEntityFeature.VOLUME_STEP
-    | MediaPlayerEntityFeature.VOLUME_MUTE
-    | MediaPlayerEntityFeature.TURN_ON
-    | MediaPlayerEntityFeature.TURN_OFF
-    | MediaPlayerEntityFeature.SELECT_SOURCE
-)
-
-DEFAULT_APP_MAP: dict[str, str] = {
-    "YouTube": "com.google.android.youtube.tv",
-    "SmartTube": "org.smarttube.stable",
-    "SmartTube Beta": "com.liskovsoft.smarttubetv.beta",
-    "Netflix": "com.netflix.ninja",
-    "Prime Video": "com.amazon.amazonvideo.livingroom",
-    "Disney+": "com.disney.disneyplus",
-    "Jellyfin": "org.jellyfin.androidtv",
-    "Emby": "tv.emby.embyatv",
-    "Plex": "com.plexapp.android",
-    "Plezy": "com.edde746.plezy",
-    "Moonfin": "org.moonfin.androidtv",
-    "Cloudstream": "com.lagradost.cloudstream3",
-    "Kodi": "org.xbmc.kodi",
-    "Crunchyroll": "com.crunchyroll.crunchyroid",
-    "Twitch": "tv.twitch.android.app",
-    "ARD Mediathek": "de.swr.avp.ard.tv",
-    "ZDF Mediathek": "com.zdf.android.mediathek",
-    "Joyn": "de.prosiebensat1digital.seventv",
-    "Spotify": "com.spotify.tv.android",
-    "SoundCloud": "com.soundcloud.android",
-    "Bilibili": "com.bstar.intl.tv",
-    "Cast Receiver": "com.instantbits.cast.receiver",
-    "File Manager": "com.rs.explorer.filemanager",
-    "APKMirror": "com.apkmirror.helper.prod",
-    "Hermes Link": "de.fabiseitz.hermeslink.tv",
-    "Settings": "com.android.tv.settings",
-    "Home Screen": "com.google.android.tvlauncher",
-}
-
-PACKAGE_TO_APP_NAME: dict[str, str] = {v: k for k, v in DEFAULT_APP_MAP.items()}
-PACKAGE_TO_APP_NAME.update(
-    {
-        "com.google.android.youtube": "YouTube",
-        "app.revanced.android.youtube": "YouTube (ReVanced)",
-        "app.revanced.android.apps.youtube.music": "YouTube Music",
-        "com.google.android.apps.youtube.music": "YouTube Music",
-        "com.spotify.music": "Spotify",
-        "org.jellyfin.mobile": "Jellyfin",
-        "com.amazon.avod.thirdpartyclient": "Prime Video",
-        "io.homeassistant.companion.android": "Home Assistant",
-        "com.android.settings": "Settings",
-        "com.android.chrome": "Chrome",
-        "com.google.android.apps.nexuslauncher": "Home Screen",
-        "de.fabiseitz.hermeslink": "Hermes Link",
-        "com.ebay.kleinanzeigen": "Kleinanzeigen",
-        "org.telegram.messenger": "Telegram",
-        "com.whatsapp": "WhatsApp",
-        "com.anthropic.claude": "Claude",
-        "sh.paseo": "Paseo",
-        "com.google.android.keep": "Google Keep",
-        "com.google.android.apps.chromecast.app": "Google Home",
-    }
-)
 
 
 async def async_setup_entry(
@@ -99,339 +41,374 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up MCPHub media player platform."""
+    """Set up MCPHub media players based on dynamic custom mappings."""
     coordinator: MCPHubCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
     client: MCPHubClient = hass.data[DOMAIN][entry.entry_id][DATA_CLIENT]
 
-    tracked_serials: set[str] = set()
+    tracked_entities: set[str] = set()
 
-    def _check_and_add_devices() -> None:
-        adb_devices = coordinator.data.get("adb_devices", [])
-        servers = coordinator.data.get("servers", [])
-        has_adb = any(
-            isinstance(s, dict)
-            and s.get("name") == "android-adb"
-            and s.get("status") == "connected"
-            for s in servers
-        )
+    def _sync_mapped_media_players() -> None:
+        mappings = load_mappings_from_entry(entry)
+        media_mappings = [
+            (m, e)
+            for m in mappings
+            if m.enabled
+            for e in m.entities
+            if e.platform == "media_player"
+        ]
+        if not media_mappings:
+            return
 
-        devices_to_process = list(adb_devices)
-        if not devices_to_process and has_adb:
-            devices_to_process = [
-                {"serial": "192.168.1.85:5555", "model": "Smart_TV_Pro"},
-                {"serial": "192.168.1.50:5555", "model": "Pixel_10_Pro"},
-            ]
+        mapped_data = coordinator.data.get("mapped_data", {})
+        new_entities: list[MCPHubMappedMediaPlayer] = []
 
-        new_entities: list[MCPHubAndroidMediaPlayer] = []
-        for dev in devices_to_process:
-            serial = dev.get("serial", "")
-            if not serial or serial.startswith("emulator-"):
-                continue
-            if serial in tracked_serials:
-                continue
+        for mapping, entity_cfg in media_mappings:
+            payload = mapped_data.get(mapping.id)
+            if not payload and mapping.id == "android_adb" and "adb_devices" in coordinator.data:
+                payload = {"devices": coordinator.data.get("adb_devices", [])}
 
-            tracked_serials.add(serial)
-            new_entities.append(
-                MCPHubAndroidMediaPlayer(coordinator, client, entry, dev)
-            )
+            devices_to_process: list[dict[str, Any]] = []
+
+            if mapping.is_multi_device:
+                devices_to_process = list(
+                    get_nested_value(payload, mapping.devices_path, []) or []
+                )
+                if not devices_to_process and mapping.server_name == "android-adb":
+                    servers = coordinator.data.get("servers", [])
+                    has_server = any(
+                        isinstance(s, dict)
+                        and s.get("name") == mapping.server_name
+                        and s.get("status") == "connected"
+                        for s in servers
+                    )
+                    if has_server:
+                        devices_to_process = [
+                            {"serial": "192.168.1.85:5555", "model": "Smart_TV_Pro", "state": "device"},
+                            {"serial": "192.168.1.50:5555", "model": "Pixel_10_Pro", "state": "device"},
+                        ]
+            elif isinstance(payload, dict):
+                devices_to_process = [payload]
+
+            for dev in devices_to_process:
+                serial = str(dev.get("serial", ""))
+                if serial.startswith("emulator-"):
+                    continue
+
+                ident_val = str(
+                    get_nested_value(dev, mapping.device_identifier_key, mapping.id)
+                )
+                clean_id = ident_val.replace(":", "_").replace(".", "_")
+                unique_id = f"{entry.entry_id}_{clean_id}_{entity_cfg.key}"
+
+                sync_device_registry(hass, entry, mapping, dev)
+
+                if unique_id in tracked_entities:
+                    continue
+
+                tracked_entities.add(unique_id)
+                new_entities.append(
+                    MCPHubMappedMediaPlayer(
+                        coordinator, client, entry, mapping, entity_cfg, dev
+                    )
+                )
 
         if new_entities:
             async_add_entities(new_entities)
 
-    _check_and_add_devices()
-    coordinator.async_add_listener(_check_and_add_devices)
+    _sync_mapped_media_players()
+    coordinator.async_add_listener(_sync_mapped_media_players)
 
 
-class MCPHubAndroidMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerEntity):
-    """Representation of an Android device / TV via ADB MCP server."""
+class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerEntity):
+    """Dynamically mapped media player for MCP devices (e.g. Android TV / phone)."""
 
     _attr_has_entity_name = True
-    _attr_supported_features = SUPPORT_ANDROID_TV
-    _attr_source_list = list(DEFAULT_APP_MAP.keys())
 
     def __init__(
         self,
         coordinator: MCPHubCoordinator,
         client: MCPHubClient,
         entry: ConfigEntry,
-        device_data: dict[str, Any],
+        mapping: DeviceMapping | dict[str, Any],
+        entity_cfg: EntityMapping | None = None,
+        device_data: dict[str, Any] | None = None,
     ) -> None:
-        """Initialize the Android media player."""
+        """Initialize the mapped media player."""
         super().__init__(coordinator)
         self._client = client
         self._entry = entry
-        self._serial = device_data.get("serial", "")
-        self._model = device_data.get("model", "Android Device").replace("_", " ")
 
-        clean_id = self._serial.replace(":", "_").replace(".", "_")
-        self._attr_unique_id = f"{entry.entry_id}_{clean_id}_media_player"
-        self._attr_name = None
+        # Support backward-compatible signature (coordinator, client, entry, device_data)
+        if device_data is None and isinstance(mapping, dict):
+            device_data = mapping
+            default_map = get_default_device_mappings()[0]
+            self._mapping = default_map
+            self._entity_cfg = default_map.entities[0]
+        else:
+            self._mapping = mapping  # type: ignore[assignment]
+            self._entity_cfg = entity_cfg or get_default_device_mappings()[0].entities[0]
 
-        is_tv = "tv" in self._model.lower() or "85" in self._serial
-        self._attr_device_class = (
-            MediaPlayerDeviceClass.TV if is_tv else MediaPlayerDeviceClass.RECEIVER
+        self._device_data = dict(device_data or {})
+
+        ident_val = str(
+            get_nested_value(self._device_data, self._mapping.device_identifier_key, self._mapping.id)
+        )
+        self._ident_val = ident_val
+        clean_id = ident_val.replace(":", "_").replace(".", "_")
+
+        self._attr_unique_id = f"{entry.entry_id}_{clean_id}_{self._entity_cfg.key}"
+        self._attr_name = self._entity_cfg.name
+
+        cls_str = (self._entity_cfg.device_class or "").lower()
+        if cls_str == "tv":
+            self._attr_device_class = MediaPlayerDeviceClass.TV
+        elif cls_str == "receiver":
+            self._attr_device_class = MediaPlayerDeviceClass.RECEIVER
+        elif cls_str == "speaker":
+            self._attr_device_class = MediaPlayerDeviceClass.SPEAKER
+        else:
+            self._attr_device_class = MediaPlayerDeviceClass.TV
+
+        features = 0
+        actions = self._entity_cfg.actions
+        if "turn_on" in actions:
+            features |= MediaPlayerEntityFeature.TURN_ON
+        if "turn_off" in actions:
+            features |= MediaPlayerEntityFeature.TURN_OFF
+        if "play" in actions:
+            features |= MediaPlayerEntityFeature.PLAY
+        if "pause" in actions:
+            features |= MediaPlayerEntityFeature.PAUSE
+        if "stop" in actions:
+            features |= MediaPlayerEntityFeature.STOP
+        if "next_track" in actions:
+            features |= MediaPlayerEntityFeature.NEXT_TRACK
+        if "previous_track" in actions:
+            features |= MediaPlayerEntityFeature.PREVIOUS_TRACK
+        if "volume_up" in actions or "volume_down" in actions:
+            features |= MediaPlayerEntityFeature.VOLUME_STEP
+        if "volume_set" in actions:
+            features |= MediaPlayerEntityFeature.VOLUME_SET
+        if "volume_mute" in actions:
+            features |= MediaPlayerEntityFeature.VOLUME_MUTE
+        if "select_source" in actions and self._entity_cfg.source_list:
+            features |= MediaPlayerEntityFeature.SELECT_SOURCE
+
+        self._attr_supported_features = features
+        self._attr_source_list = (
+            list(self._entity_cfg.source_list.keys()) if self._entity_cfg.source_list else None
+        )
+        self._reverse_source_map = (
+            {v: k for k, v in self._entity_cfg.source_list.items()}
+            if self._entity_cfg.source_list
+            else {}
         )
 
         self._attr_state = MediaPlayerState.OFF
         self._attr_available = True
-        self._attr_volume_level: float | None = None
-        self._attr_is_volume_muted: bool | None = False
         self._attr_source: str | None = None
         self._attr_app_id: str | None = None
         self._attr_app_name: str | None = None
+        self._attr_volume_level: float | None = None
+        self._attr_is_volume_muted: bool | None = False
 
-        self._parse_device_state(device_data)
+        self._update_state_from_data(self._device_data)
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device information linking to the MCPHub server."""
-        clean_id = self._serial.replace(":", "_").replace(".", "_")
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._entry.entry_id}_{clean_id}")},
-            name=self._model,
-            manufacturer="Google / Android",
-            model=self._model,
-        )
+        """Return dynamic device information extracted via custom mapping."""
+        return extract_device_info(self._entry, self._mapping, self._device_data)
 
-    def _parse_device_state(self, device_data: dict[str, Any]) -> None:
-        """Parse basic device status from coordinator data without error logging."""
-        state = device_data.get("state")
-        if state != "device":
+    def _update_state_from_data(self, data: dict[str, Any]) -> None:
+        """Parse entity state and source safely."""
+        status_val = get_nested_value(data, self._mapping.offline_policy.status_key)
+        offline_vals = self._mapping.offline_policy.offline_values
+
+        if status_val in offline_vals or (
+            isinstance(status_val, str)
+            and status_val.lower() in [str(x).lower() for x in offline_vals]
+        ):
             self._attr_state = MediaPlayerState.OFF
-            self._attr_available = True
+            self._attr_available = self._mapping.offline_policy.available_when_offline
             return
 
-        app = device_data.get("currentApp")
-        if app and app != "Unknown":
-            self._attr_app_id = app
-            self._attr_app_name = PACKAGE_TO_APP_NAME.get(app, app)
-            self._attr_source = self._attr_app_name
+        self._attr_available = True
+        raw_state = str(get_nested_value(data, self._entity_cfg.value_path, "device")).lower()
+        if raw_state in ("device", "online", "idle", "playing", "on"):
+            self._attr_state = MediaPlayerState.ON
+        else:
+            self._attr_state = MediaPlayerState.OFF
+
+        if self._entity_cfg.current_source_path:
+            raw_src = get_nested_value(data, self._entity_cfg.current_source_path)
+            if raw_src and raw_src not in ("Unknown", "null", ""):
+                self._attr_app_id = str(raw_src)
+                self._attr_app_name = self._reverse_source_map.get(str(raw_src), str(raw_src))
+                self._attr_source = self._attr_app_name
 
     def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        adb_devices = self.coordinator.data.get("adb_devices", [])
-        dev = next((d for d in adb_devices if d.get("serial") == self._serial), None)
-        if dev:
-            self._parse_device_state(dev)
-        super()._handle_coordinator_update()
+        """Handle updated coordinator data."""
+        mapped_data = self.coordinator.data.get("mapped_data", {})
+        payload = mapped_data.get(self._mapping.id)
+        if not payload and self._mapping.id == "android_adb" and "adb_devices" in self.coordinator.data:
+            payload = {"devices": self.coordinator.data.get("adb_devices", [])}
+
+        target_dev: dict[str, Any] | None = None
+        if self._mapping.is_multi_device:
+            devices = get_nested_value(payload, self._mapping.devices_path, []) or []
+            for d in devices:
+                ident = str(get_nested_value(d, self._mapping.device_identifier_key, ""))
+                if ident == self._ident_val:
+                    target_dev = d
+                    break
+        elif isinstance(payload, dict):
+            target_dev = payload
+
+        if target_dev:
+            self._device_data.update(target_dev)
+            self._update_state_from_data(target_dev)
+            self.async_write_ha_state()
 
     async def async_update(self) -> None:
-        """Poll device for wakefulness, volume, and playback state."""
-        cmd = (
-            "dumpsys power | grep -m1 'mWakefulness='; "
-            "dumpsys audio | grep -m1 'streamVolume:'; "
-            "dumpsys media_session | grep -m1 'state=PlaybackState'; "
-            "dumpsys window | grep -m1 'mCurrentFocus='"
-        )
+        """Poll device state directly or via dumpsys."""
+        if not self._client or self._mapping.server_name != "android-adb":
+            return
+        serial = self._device_data.get("serial", "")
+        if not serial:
+            return
+
+        cmd = "dumpsys power | grep mWakefulness ; dumpsys audio | grep -i 'streamVolume:' ; dumpsys media_session | grep -i 'state=PlaybackState' ; dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'"
         try:
             res = await self._client.async_call_tool(
-                "android-adb",
-                "adb_shell",
-                {"command": cmd, "device": self._serial},
+                "android-adb", "adb_shell", {"command": cmd, "device": serial, "serial": serial}
             )
             raw_text = ""
-            content = res.get("content", []) if isinstance(res, dict) else []
-            for item in content:
+            for item in (res.get("content", []) if isinstance(res, dict) else []):
                 if isinstance(item, dict) and item.get("type") == "text":
                     raw_text = item.get("text", "")
                     break
-
-            if not raw_text or "device offline" in raw_text.lower():
-                self._attr_state = MediaPlayerState.OFF
-                self._attr_available = True
-                return
-
-            if "mWakefulness=Awake" in raw_text:
-                self._attr_state = MediaPlayerState.ON
-            else:
-                self._attr_state = MediaPlayerState.OFF
-                self._attr_available = True
-                return
-
-            vol_match = re.search(r"streamVolume:(\d+)", raw_text)
-            if vol_match:
-                vol_val = int(vol_match.group(1))
-                max_vol = 100.0 if vol_val > 30 else 25.0
-                self._attr_volume_level = min(1.0, max(0.0, vol_val / max_vol))
-
-            play_match = re.search(r"state=(\d+)", raw_text)
-            if play_match:
-                p_code = int(play_match.group(1))
-                if p_code == 3:
-                    self._attr_state = MediaPlayerState.PLAYING
-                elif p_code == 2:
-                    self._attr_state = MediaPlayerState.PAUSED
-
-            app_match = re.search(
-                r"mCurrentFocus=Window\{[^\s]+ [^\s]+ ([^\s/]+)", raw_text
-            )
-            if app_match:
-                pkg = app_match.group(1).strip()
-                self._attr_app_id = pkg
-                self._attr_app_name = PACKAGE_TO_APP_NAME.get(pkg, pkg)
-                self._attr_source = self._attr_app_name
-
-        except Exception as err:
-            _LOGGER.debug(
-                "Android device %s is offline or sleeping during update: %s",
-                self._serial,
-                err,
-            )
+            if raw_text:
+                self._parse_dumpsys_output(raw_text)
+        except Exception:
             self._attr_state = MediaPlayerState.OFF
             self._attr_available = True
 
+    def _parse_dumpsys_output(self, out: str) -> None:
+        """Parse awake, volume, and playback state from adb output."""
+        if "mWakefulness=Asleep" in out or "mWakefulness=Dozing" in out:
+            self._attr_state = MediaPlayerState.OFF
+            return
+
+        vol_match = re.search(r"streamVolume:\s*(\d+)", out)
+        if vol_match:
+            try:
+                self._attr_volume_level = round(int(vol_match.group(1)) / 100.0, 2)
+            except Exception:
+                pass
+
+        if "state=3" in out:
+            self._attr_state = MediaPlayerState.PLAYING
+        elif "state=2" in out:
+            self._attr_state = MediaPlayerState.PAUSED
+        elif "state=1" in out:
+            self._attr_state = MediaPlayerState.IDLE
+        elif "mWakefulness=Awake" in out:
+            self._attr_state = MediaPlayerState.ON
+
+        app_match = re.search(r"Window\{[^\}]*\s+([a-zA-Z0-9_\.]+)/", out)
+        if app_match:
+            pkg = app_match.group(1)
+            self._attr_app_id = pkg
+            self._attr_app_name = self._reverse_source_map.get(pkg, pkg)
+            self._attr_source = self._attr_app_name
+
+    async def _execute_action(
+        self, action_key: str, action_params: dict[str, Any] | None = None
+    ) -> None:
+        """Execute a mapped action."""
+        action_mapping = self._entity_cfg.actions.get(action_key)
+        if not action_mapping:
+            _LOGGER.warning("Action %s not mapped for %s", action_key, self.entity_id)
+            return
+
+        ctx = dict(action_params or {})
+        dev_ctx = dict(self._device_data)
+        if "serial" in dev_ctx and "device" not in dev_ctx:
+            dev_ctx["device"] = dev_ctx["serial"]
+
+        await async_execute_mapping_action(
+            self._client,
+            action_mapping,
+            self._mapping.server_name,
+            dev_ctx,
+            ctx,
+        )
+        if action_key == "turn_on":
+            self._attr_state = MediaPlayerState.ON
+        elif action_key == "turn_off":
+            self._attr_state = MediaPlayerState.OFF
+        elif action_key == "play":
+            self._attr_state = MediaPlayerState.PLAYING
+        elif action_key == "pause":
+            self._attr_state = MediaPlayerState.PAUSED
+        elif action_key == "stop":
+            self._attr_state = MediaPlayerState.IDLE
+
+        if self.hass:
+            self.async_write_ha_state()
+        if self.coordinator:
+            ref = self.coordinator.async_request_refresh()
+            if asyncio.iscoroutine(ref):
+                await ref
+
     async def async_turn_on(self) -> None:
-        """Wake Android device from standby."""
-        try:
-            await self._client.async_call_tool(
-                "android-adb", "adb_connect", {"device": self._serial}
-            )
-            await self._client.async_call_tool(
-                "android-adb",
-                "adb_keyevent",
-                {"device": self._serial, "keycode": "WAKEUP"},
-            )
-            await self._client.async_call_tool(
-                "android-adb",
-                "adb_keyevent",
-                {"device": self._serial, "keycode": "POWER"},
-            )
-        except Exception as err:
-            _LOGGER.debug("Wake command error on %s: %s", self._serial, err)
-        self._attr_state = MediaPlayerState.ON
-        self.async_write_ha_state()
+        """Turn on the media player."""
+        await self._execute_action("turn_on")
 
     async def async_turn_off(self) -> None:
-        """Put Android device into standby/sleep."""
-        try:
-            await self._client.async_call_tool(
-                "android-adb",
-                "adb_keyevent",
-                {"device": self._serial, "keycode": "SLEEP"},
-            )
-        except Exception as err:
-            _LOGGER.debug("Sleep command error on %s: %s", self._serial, err)
-        self._attr_state = MediaPlayerState.OFF
-        self.async_write_ha_state()
+        """Turn off the media player."""
+        await self._execute_action("turn_off")
 
     async def async_media_play(self) -> None:
         """Send play command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "MEDIA_PLAY"},
-        )
-        self._attr_state = MediaPlayerState.PLAYING
-        self.async_write_ha_state()
+        await self._execute_action("play")
 
     async def async_media_pause(self) -> None:
         """Send pause command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "MEDIA_PAUSE"},
-        )
-        self._attr_state = MediaPlayerState.PAUSED
-        self.async_write_ha_state()
-
-    async def async_media_play_pause(self) -> None:
-        """Toggle play/pause command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "MEDIA_PLAY_PAUSE"},
-        )
-        if self._attr_state == MediaPlayerState.PLAYING:
-            self._attr_state = MediaPlayerState.PAUSED
-        else:
-            self._attr_state = MediaPlayerState.PLAYING
-        self.async_write_ha_state()
+        await self._execute_action("pause")
 
     async def async_media_stop(self) -> None:
         """Send stop command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "MEDIA_STOP"},
-        )
-        self._attr_state = MediaPlayerState.ON
-        self.async_write_ha_state()
+        await self._execute_action("stop")
 
     async def async_media_next_track(self) -> None:
         """Send next track command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "MEDIA_NEXT"},
-        )
+        await self._execute_action("next_track")
 
     async def async_media_previous_track(self) -> None:
         """Send previous track command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "MEDIA_PREVIOUS"},
-        )
+        await self._execute_action("previous_track")
 
     async def async_volume_up(self) -> None:
-        """Send volume up command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "VOLUME_UP"},
-        )
-        if self._attr_volume_level is not None:
-            self._attr_volume_level = min(1.0, self._attr_volume_level + 0.05)
-            self.async_write_ha_state()
+        """Volume up."""
+        await self._execute_action("volume_up")
 
     async def async_volume_down(self) -> None:
-        """Send volume down command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "VOLUME_DOWN"},
-        )
-        if self._attr_volume_level is not None:
-            self._attr_volume_level = max(0.0, self._attr_volume_level - 0.05)
-            self.async_write_ha_state()
-
-    async def async_mute_volume(self, mute: bool) -> None:
-        """Send volume mute command."""
-        await self._client.async_call_tool(
-            "android-adb",
-            "adb_keyevent",
-            {"device": self._serial, "keycode": "VOLUME_MUTE"},
-        )
-        self._attr_is_volume_muted = mute
-        self.async_write_ha_state()
+        """Volume down."""
+        await self._execute_action("volume_down")
 
     async def async_set_volume_level(self, volume: float) -> None:
         """Set volume level."""
-        target_idx = round(volume * 100)
-        cmd = f"cmd media_session volume --stream 3 --set {target_idx}"
-        try:
-            await self._client.async_call_tool(
-                "android-adb",
-                "adb_shell",
-                {"command": cmd, "device": self._serial},
-            )
-        except Exception as err:
-            _LOGGER.debug("Could not set volume on %s: %s", self._serial, err)
-        self._attr_volume_level = volume
-        self.async_write_ha_state()
+        await self._execute_action("volume_set", {"volume": volume})
 
     async def async_select_source(self, source: str) -> None:
-        """Launch application source on Android TV."""
-        pkg = DEFAULT_APP_MAP.get(source, source)
-        try:
-            await self._client.async_call_tool(
-                "android-adb",
-                "adb_app_launch",
-                {"app": pkg, "device": self._serial},
-            )
-        except Exception as err:
-            _LOGGER.debug("Could not launch app %s on %s: %s", pkg, self._serial, err)
+        """Select input source."""
+        pkg = self._entity_cfg.source_list.get(source, source)
         self._attr_source = source
-        self._attr_app_id = pkg
         self._attr_app_name = source
-        self.async_write_ha_state()
+        self._attr_app_id = pkg
+        await self._execute_action("select_source", {"source": pkg, "app": pkg})
+
+
+# Backward compatibility alias
+MCPHubAndroidMediaPlayer = MCPHubMappedMediaPlayer

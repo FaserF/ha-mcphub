@@ -39,7 +39,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = async_get_clientsession(hass)
     client = MCPHubClient(api_url, api_key, session=session)
 
-    coordinator = MCPHubCoordinator(hass, client, poll_interval=poll_interval)
+    coordinator = MCPHubCoordinator(
+        hass, client, poll_interval=poll_interval, config_entry=entry
+    )
     await coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = {
