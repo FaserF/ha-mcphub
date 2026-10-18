@@ -5,13 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from homeassistant.components.media_player import MediaPlayerDeviceClass, MediaPlayerState
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 
-from custom_components.mcphub.const import DATA_CLIENT, DATA_COORDINATOR, DOMAIN
 from custom_components.mcphub.custom_mapping import (
-    DEFAULT_ADB_MAPPING_DICT,
     DEFAULT_PRINTER_MAPPING_DICT,
     DeviceMapping,
     extract_device_info,
@@ -52,10 +48,7 @@ def test_get_nested_value_and_templates() -> None:
     assert get_nested_value(data, "items.0.level") == 85
     assert get_nested_value(data, "nonexistent.key", "default") == "default"
 
-    assert (
-        render_template_str("Hello {{ device.name }}!", data)
-        == "Hello Test Device!"
-    )
+    assert render_template_str("Hello {{ device.name }}!", data) == "Hello Test Device!"
     rendered_args = render_args_template(
         {"target": "{{ device.serial }}", "count": 5},
         data,
@@ -67,6 +60,7 @@ def test_get_nested_value_and_templates() -> None:
 def test_extract_mac_connections() -> None:
     """Test MAC address extraction and formatting."""
     from homeassistant.helpers.device_registry import format_mac
+
     if hasattr(format_mac, "side_effect"):
         format_mac.side_effect = lambda m: str(m).lower()
 
@@ -78,10 +72,13 @@ def test_extract_mac_connections() -> None:
 def test_printer_device_info_and_sensor_offline(mock_config_entry: MagicMock) -> None:
     """Test IPP printer device info extraction and graceful offline handling."""
     from homeassistant.helpers.device_registry import format_mac
+
     if hasattr(format_mac, "side_effect"):
         format_mac.side_effect = lambda m: str(m).lower()
     printer_map = DeviceMapping.from_dict(DEFAULT_PRINTER_MAPPING_DICT)
-    status_entity_cfg = next(e for e in printer_map.entities if e.key == "printer_status")
+    status_entity_cfg = next(
+        e for e in printer_map.entities if e.key == "printer_status"
+    )
     marker_entity_cfg = next(e for e in printer_map.entities if e.key == "marker")
 
     offline_payload = {
@@ -158,7 +155,12 @@ async def test_printer_power_switch(
     coordinator.async_request_refresh = MagicMock()
 
     switch = MCPHubMappedSwitch(
-        coordinator, mock_client, mock_config_entry, printer_map, power_entity_cfg, dev_data
+        coordinator,
+        mock_client,
+        mock_config_entry,
+        printer_map,
+        power_entity_cfg,
+        dev_data,
     )
     assert switch.is_on is False
 
@@ -169,7 +171,5 @@ async def test_printer_power_switch(
     assert switch.is_on is True
 
     await switch.async_turn_off()
-    mock_client.async_call_tool.assert_called_with(
-        "printer", "printer_power_off", {}
-    )
+    mock_client.async_call_tool.assert_called_with("printer", "printer_power_off", {})
     assert switch.is_on is False

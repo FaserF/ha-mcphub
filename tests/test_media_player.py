@@ -198,6 +198,7 @@ async def test_media_player_device_info_mac_linking(
 ) -> None:
     """Test device info publishes real manufacturer, model, sw_version, and MAC connections for OpenWrt linking."""
     from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, format_mac
+
     if hasattr(format_mac, "side_effect"):
         format_mac.side_effect = lambda m: str(m).lower()
 
@@ -238,4 +239,3 @@ async def test_media_player_device_info_mac_linking(
     assert "Pixel 10 Pro" in pixel_info["model"]
     assert pixel_info["sw_version"] == "Android 17"
     assert (CONNECTION_NETWORK_MAC, "64:9d:38:c4:99:06") in pixel_info["connections"]
-

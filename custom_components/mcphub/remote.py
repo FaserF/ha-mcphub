@@ -86,7 +86,11 @@ async def async_setup_entry(
 
         for mapping, entity_cfg in remote_mappings:
             payload = mapped_data.get(mapping.id)
-            if not payload and mapping.id == "android_adb" and "adb_devices" in coordinator.data:
+            if (
+                not payload
+                and mapping.id == "android_adb"
+                and "adb_devices" in coordinator.data
+            ):
                 payload = {"devices": coordinator.data.get("adb_devices", [])}
 
             devices_to_process: list[dict[str, Any]] = []
@@ -105,8 +109,16 @@ async def async_setup_entry(
                     )
                     if has_server:
                         devices_to_process = [
-                            {"serial": "192.168.1.85:5555", "model": "Smart_TV_Pro", "state": "device"},
-                            {"serial": "192.168.1.50:5555", "model": "Pixel_10_Pro", "state": "device"},
+                            {
+                                "serial": "192.168.1.85:5555",
+                                "model": "Smart_TV_Pro",
+                                "state": "device",
+                            },
+                            {
+                                "serial": "192.168.1.50:5555",
+                                "model": "Pixel_10_Pro",
+                                "state": "device",
+                            },
                         ]
             elif isinstance(payload, dict):
                 devices_to_process = [payload]
@@ -129,7 +141,9 @@ async def async_setup_entry(
 
                 tracked_entities.add(unique_id)
                 new_entities.append(
-                    MCPHubMappedRemote(coordinator, client, entry, mapping, entity_cfg, dev)
+                    MCPHubMappedRemote(
+                        coordinator, client, entry, mapping, entity_cfg, dev
+                    )
                 )
 
         if new_entities:
@@ -166,12 +180,16 @@ class MCPHubMappedRemote(CoordinatorEntity[MCPHubCoordinator], RemoteEntity):
             self._entity_cfg = default_map.entities[1]
         else:
             self._mapping = mapping  # type: ignore[assignment]
-            self._entity_cfg = entity_cfg or get_default_device_mappings()[0].entities[1]
+            self._entity_cfg = (
+                entity_cfg or get_default_device_mappings()[0].entities[1]
+            )
 
         self._device_data = dict(device_data or {})
 
         ident_val = str(
-            get_nested_value(self._device_data, self._mapping.device_identifier_key, self._mapping.id)
+            get_nested_value(
+                self._device_data, self._mapping.device_identifier_key, self._mapping.id
+            )
         )
         self._ident_val = ident_val
         clean_id = ident_val.replace(":", "_").replace(".", "_")
@@ -208,14 +226,20 @@ class MCPHubMappedRemote(CoordinatorEntity[MCPHubCoordinator], RemoteEntity):
         """Handle updated coordinator data."""
         mapped_data = self.coordinator.data.get("mapped_data", {})
         payload = mapped_data.get(self._mapping.id)
-        if not payload and self._mapping.id == "android_adb" and "adb_devices" in self.coordinator.data:
+        if (
+            not payload
+            and self._mapping.id == "android_adb"
+            and "adb_devices" in self.coordinator.data
+        ):
             payload = {"devices": self.coordinator.data.get("adb_devices", [])}
 
         target_dev: dict[str, Any] | None = None
         if self._mapping.is_multi_device:
             devices = get_nested_value(payload, self._mapping.devices_path, []) or []
             for d in devices:
-                ident = str(get_nested_value(d, self._mapping.device_identifier_key, ""))
+                ident = str(
+                    get_nested_value(d, self._mapping.device_identifier_key, "")
+                )
                 if ident == self._ident_val:
                     target_dev = d
                     break

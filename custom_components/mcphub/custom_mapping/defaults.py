@@ -84,23 +84,38 @@ DEFAULT_ADB_MAPPING_DICT: dict[str, Any] = {
                 },
                 "play": {
                     "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "MEDIA_PLAY"},
+                    "args_template": {
+                        "serial": "{{ device.serial }}",
+                        "key": "MEDIA_PLAY",
+                    },
                 },
                 "pause": {
                     "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "MEDIA_PAUSE"},
+                    "args_template": {
+                        "serial": "{{ device.serial }}",
+                        "key": "MEDIA_PAUSE",
+                    },
                 },
                 "stop": {
                     "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "MEDIA_STOP"},
+                    "args_template": {
+                        "serial": "{{ device.serial }}",
+                        "key": "MEDIA_STOP",
+                    },
                 },
                 "next_track": {
                     "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "MEDIA_NEXT"},
+                    "args_template": {
+                        "serial": "{{ device.serial }}",
+                        "key": "MEDIA_NEXT",
+                    },
                 },
                 "previous_track": {
                     "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "MEDIA_PREVIOUS"},
+                    "args_template": {
+                        "serial": "{{ device.serial }}",
+                        "key": "MEDIA_PREVIOUS",
+                    },
                 },
                 "volume_up": {
                     "tool": "adb_volume_up",

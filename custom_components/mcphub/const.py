@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Final
+from typing import Final
 
 from homeassistant.const import Platform
 
@@ -201,5 +201,3 @@ ATTR_TOOL_NAME: Final = "tool_name"
 ATTR_SERVER_NAME: Final = "server_name"
 ATTR_RESULT: Final = "result"
 ATTR_IS_ERROR: Final = "is_error"
-
-

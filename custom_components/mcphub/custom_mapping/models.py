@@ -48,7 +48,9 @@ class EntityMapping:
         """Create EntityMapping from dictionary."""
         raw_actions = data.get("actions", {}) or {}
         parsed_actions = {
-            k: ActionMapping.from_dict(v) if isinstance(v, dict) else ActionMapping(tool=str(v))
+            k: ActionMapping.from_dict(v)
+            if isinstance(v, dict)
+            else ActionMapping(tool=str(v))
             for k, v in raw_actions.items()
         }
         return cls(
@@ -93,7 +95,9 @@ class DeviceInfoMapping:
             sw_version_path=data.get("sw_version_path", "sw_version"),
             serial_path=data.get("serial_path", "serial"),
             mac_path=data.get("mac_path", "mac"),
-            configuration_url_path=data.get("configuration_url_path", "configuration_url"),
+            configuration_url_path=data.get(
+                "configuration_url_path", "configuration_url"
+            ),
         )
 
 
@@ -102,7 +106,9 @@ class OfflinePolicy:
     """Defines how offline or unreachable states are handled gracefully."""
 
     status_key: str = "online"
-    offline_values: list[Any] = field(default_factory=lambda: [False, "offline", "unreachable", "off"])
+    offline_values: list[Any] = field(
+        default_factory=lambda: [False, "offline", "unreachable", "off"]
+    )
     available_when_offline: bool = True
     default_state_when_offline: str = "off"
 
@@ -111,7 +117,9 @@ class OfflinePolicy:
         """Create OfflinePolicy from dictionary."""
         return cls(
             status_key=data.get("status_key", "online"),
-            offline_values=data.get("offline_values", [False, "offline", "unreachable", "off"]),
+            offline_values=data.get(
+                "offline_values", [False, "offline", "unreachable", "off"]
+            ),
             available_when_offline=bool(data.get("available_when_offline", True)),
             default_state_when_offline=data.get("default_state_when_offline", "off"),
         )

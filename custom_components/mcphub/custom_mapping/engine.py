@@ -109,9 +109,7 @@ def extract_device_info(
     )
     clean_id = ident_val.replace(":", "_").replace(".", "_")
 
-    name = get_nested_value(
-        device_data, mapping.device_info.name_path, mapping.name
-    )
+    name = get_nested_value(device_data, mapping.device_info.name_path, mapping.name)
     if isinstance(name, str):
         name = name.replace("_", " ")
 
@@ -175,7 +173,11 @@ def sync_device_registry(
         device_entry = dev_reg.async_get_device(identifiers=identifiers)
         if device_entry:
             update_kwargs: dict[str, Any] = {}
-            if raw_mfr and raw_mfr != "Unknown" and device_entry.manufacturer != raw_mfr:
+            if (
+                raw_mfr
+                and raw_mfr != "Unknown"
+                and device_entry.manufacturer != raw_mfr
+            ):
                 update_kwargs["manufacturer"] = str(raw_mfr)
             if raw_model and device_entry.model != raw_model:
                 update_kwargs["model"] = str(raw_model)

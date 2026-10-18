@@ -184,6 +184,7 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
             raw_mappings = user_input.get(CONF_CUSTOM_MAPPINGS)
             if raw_mappings:
                 import json
+
                 try:
                     parsed = json.loads(raw_mappings)
                     if not isinstance(parsed, list):
@@ -214,6 +215,7 @@ class MCPHubOptionsFlowHandler(OptionsFlow):
         )
 
         import json
+
         from .custom_mapping import DEFAULT_MAPPINGS
 
         current_mappings = self.config_entry.options.get(

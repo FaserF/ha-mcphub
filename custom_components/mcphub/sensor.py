@@ -184,7 +184,9 @@ async def async_setup_entry(
                         if not isinstance(item, dict):
                             continue
                         item_id = str(
-                            item.get(entity_cfg.collection_id_key, item.get("index", ""))
+                            item.get(
+                                entity_cfg.collection_id_key, item.get("index", "")
+                            )
                         )
                         clean_item_id = item_id.replace(" ", "_").lower()
                         uid = f"{entry.entry_id}_{clean_id}_{entity_cfg.key}_{clean_item_id}"
@@ -207,9 +209,7 @@ async def async_setup_entry(
                         continue
                     tracked_sensors.add(uid)
                     new_sensors.append(
-                        MCPHubMappedSensor(
-                            coordinator, entry, mapping, entity_cfg, dev
-                        )
+                        MCPHubMappedSensor(coordinator, entry, mapping, entity_cfg, dev)
                     )
 
         if new_sensors:
@@ -407,13 +407,19 @@ class MCPHubMappedSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
             self._attr_device_class = getattr(SensorDeviceClass, "ENUM", "enum")
             self._attr_options = entity_cfg.options
         elif cls_str == "timestamp":
-            self._attr_device_class = getattr(SensorDeviceClass, "TIMESTAMP", "timestamp")
+            self._attr_device_class = getattr(
+                SensorDeviceClass, "TIMESTAMP", "timestamp"
+            )
 
         st_str = (entity_cfg.state_class or "").lower()
         if st_str == "measurement":
-            self._attr_state_class = getattr(SensorStateClass, "MEASUREMENT", "measurement")
+            self._attr_state_class = getattr(
+                SensorStateClass, "MEASUREMENT", "measurement"
+            )
         elif st_str == "total_increasing":
-            self._attr_state_class = getattr(SensorStateClass, "TOTAL_INCREASING", "total_increasing")
+            self._attr_state_class = getattr(
+                SensorStateClass, "TOTAL_INCREASING", "total_increasing"
+            )
 
         if entity_cfg.unit_of_measurement:
             self._attr_native_unit_of_measurement = entity_cfg.unit_of_measurement

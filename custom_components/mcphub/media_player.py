@@ -64,7 +64,11 @@ async def async_setup_entry(
 
         for mapping, entity_cfg in media_mappings:
             payload = mapped_data.get(mapping.id)
-            if not payload and mapping.id == "android_adb" and "adb_devices" in coordinator.data:
+            if (
+                not payload
+                and mapping.id == "android_adb"
+                and "adb_devices" in coordinator.data
+            ):
                 payload = {"devices": coordinator.data.get("adb_devices", [])}
 
             devices_to_process: list[dict[str, Any]] = []
@@ -83,8 +87,16 @@ async def async_setup_entry(
                     )
                     if has_server:
                         devices_to_process = [
-                            {"serial": "192.168.1.85:5555", "model": "Smart_TV_Pro", "state": "device"},
-                            {"serial": "192.168.1.50:5555", "model": "Pixel_10_Pro", "state": "device"},
+                            {
+                                "serial": "192.168.1.85:5555",
+                                "model": "Smart_TV_Pro",
+                                "state": "device",
+                            },
+                            {
+                                "serial": "192.168.1.50:5555",
+                                "model": "Pixel_10_Pro",
+                                "state": "device",
+                            },
                         ]
             elif isinstance(payload, dict):
                 devices_to_process = [payload]
@@ -146,12 +158,16 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
             self._entity_cfg = default_map.entities[0]
         else:
             self._mapping = mapping  # type: ignore[assignment]
-            self._entity_cfg = entity_cfg or get_default_device_mappings()[0].entities[0]
+            self._entity_cfg = (
+                entity_cfg or get_default_device_mappings()[0].entities[0]
+            )
 
         self._device_data = dict(device_data or {})
 
         ident_val = str(
-            get_nested_value(self._device_data, self._mapping.device_identifier_key, self._mapping.id)
+            get_nested_value(
+                self._device_data, self._mapping.device_identifier_key, self._mapping.id
+            )
         )
         self._ident_val = ident_val
         clean_id = ident_val.replace(":", "_").replace(".", "_")
@@ -196,7 +212,9 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
 
         self._attr_supported_features = features
         self._attr_source_list = (
-            list(self._entity_cfg.source_list.keys()) if self._entity_cfg.source_list else None
+            list(self._entity_cfg.source_list.keys())
+            if self._entity_cfg.source_list
+            else None
         )
         self._reverse_source_map = (
             {v: k for k, v in self._entity_cfg.source_list.items()}
@@ -233,7 +251,9 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
             return
 
         self._attr_available = True
-        raw_state = str(get_nested_value(data, self._entity_cfg.value_path, "device")).lower()
+        raw_state = str(
+            get_nested_value(data, self._entity_cfg.value_path, "device")
+        ).lower()
         if raw_state in ("device", "online", "idle", "playing", "on"):
             self._attr_state = MediaPlayerState.ON
         else:
@@ -243,21 +263,29 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
             raw_src = get_nested_value(data, self._entity_cfg.current_source_path)
             if raw_src and raw_src not in ("Unknown", "null", ""):
                 self._attr_app_id = str(raw_src)
-                self._attr_app_name = self._reverse_source_map.get(str(raw_src), str(raw_src))
+                self._attr_app_name = self._reverse_source_map.get(
+                    str(raw_src), str(raw_src)
+                )
                 self._attr_source = self._attr_app_name
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated coordinator data."""
         mapped_data = self.coordinator.data.get("mapped_data", {})
         payload = mapped_data.get(self._mapping.id)
-        if not payload and self._mapping.id == "android_adb" and "adb_devices" in self.coordinator.data:
+        if (
+            not payload
+            and self._mapping.id == "android_adb"
+            and "adb_devices" in self.coordinator.data
+        ):
             payload = {"devices": self.coordinator.data.get("adb_devices", [])}
 
         target_dev: dict[str, Any] | None = None
         if self._mapping.is_multi_device:
             devices = get_nested_value(payload, self._mapping.devices_path, []) or []
             for d in devices:
-                ident = str(get_nested_value(d, self._mapping.device_identifier_key, ""))
+                ident = str(
+                    get_nested_value(d, self._mapping.device_identifier_key, "")
+                )
                 if ident == self._ident_val:
                     target_dev = d
                     break
@@ -280,10 +308,12 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
         cmd = "dumpsys power | grep mWakefulness ; dumpsys audio | grep -i 'streamVolume:' ; dumpsys media_session | grep -i 'state=PlaybackState' ; dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'"
         try:
             res = await self._client.async_call_tool(
-                "android-adb", "adb_shell", {"command": cmd, "device": serial, "serial": serial}
+                "android-adb",
+                "adb_shell",
+                {"command": cmd, "device": serial, "serial": serial},
             )
             raw_text = ""
-            for item in (res.get("content", []) if isinstance(res, dict) else []):
+            for item in res.get("content", []) if isinstance(res, dict) else []:
                 if isinstance(item, dict) and item.get("type") == "text":
                     raw_text = item.get("text", "")
                     break
