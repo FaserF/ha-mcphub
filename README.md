@@ -24,9 +24,9 @@ Dynamically maps all your registered MCP servers into dedicated, first-class Hom
 - **Cache Management**: Instantly purge tool discovery and schema caches (`button.mcphub_gateway_clear_cache`).
 
 ### 2. 🧩 Intelligent First-Class Server Device Mapping
-Every registered MCP server selected during setup (e.g. `finance`, `dell-worker`, `gaming-pc`, `signal`, `steam`, `rocketchat`, `postgres`, `sqlite`, etc.) is dynamically mapped into its own **dedicated Home Assistant Device** with:
+Every registered MCP server selected during setup (e.g. `github`, `slack`, `rocketchat`, `postgres`, `sqlite`, `filesystem`, `brave-search`, etc.) is dynamically mapped into its own **dedicated Home Assistant Device** with:
 - **Software Version & Transport Mode**: Displays real firmware/software versions and protocol transport (`STDIO`, `STREAMABLE-HTTP`, `SSE`).
-- **Web UI Visit Shortcut**: Direct link to the service dashboard (e.g. `http://code.tailnet.fabiseitz.de:8096` for Jellyfin, `https://paperless.tailnet.fabiseitz.de` for Paperless, etc.).
+- **Web UI Visit Shortcut**: Direct link to the service dashboard if available.
 - **Per-Server Online Connectivity**: Binary sensor (`binary_sensor.mcphub_<server>_online`) reflecting live MCPHub heartbeat.
 - **Server Lifecycle Switch**: Power switch (`switch.mcphub_<server>_enabled`) to enable or disable individual MCP servers on demand without container restarts.
 - **Service Restart Button**: Action button (`button.mcphub_<server>_restart_reload`) triggering an immediate process reconnect.
@@ -66,7 +66,7 @@ MCPHub actively inspects your Home Assistant setup and prevents duplicate entiti
 1. In Home Assistant, navigate to **Settings > Devices & Services > Add Integration**.
 2. Search for **MCPHub Gateway**.
 3. Enter your connection details:
-   - **MCPHub Base URL**: e.g. `http://mcphub.tailnet.fabiseitz.de:3000`
+   - **MCPHub Base URL**: e.g. `http://homeassistant.local:3000` or `http://localhost:3000`
    - **Bearer API Key**: Your MCPHub authorization token (e.g. `mcphub_...`)
    - **Default Tool Group**: Fallback routing group (default: `$smart`)
 4. In the **Select MCP Servers** step, check the servers you want to expose as Home Assistant devices.
@@ -84,16 +84,18 @@ Click **Configure** on the MCPHub integration card to:
 ## 🛠️ Service & Action Reference
 
 ### `mcphub.call_tool`
-Execute any tool across any of the 47+ registered MCP servers or `$smart` routing group with full JSON response support.
+Execute any tool across any registered MCP server or `$smart` routing group with full JSON response support.
 
 ```yaml
 action: mcphub.call_tool
 data:
-  server: "finance"
-  tool_name: "finance-finance_get_quote"
+  server: "github"
+  tool_name: "github-get_issue"
   arguments:
-    symbol: "AAPL"
-response_variable: quote_result
+    owner: "home-assistant"
+    repo: "core"
+    issue_number: 12345
+response_variable: issue_result
 ```
 
 ### `mcphub.discover_tools`
@@ -112,7 +114,7 @@ Instruct MCPHub to restart and reconnect an MCP server connection.
 ```yaml
 action: mcphub.reload_server
 data:
-  server_name: "dell-worker"
+  server_name: "postgres"
 ```
 
 ### `mcphub.toggle_server`

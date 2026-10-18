@@ -58,6 +58,35 @@ async def async_setup_entry(
             continue
         entities.append(MCPHubServerEnableSwitch(coordinator, client, entry, name))
 
+        # Dynamic tool boolean switches
+        tools = server.get("tools", [])
+        for tool in tools:
+            if not isinstance(tool, dict):
+                continue
+            schema = tool.get("inputSchema") or {}
+            props = schema.get("properties", {})
+            req_params = schema.get("required", [])
+
+            # Check if there is a single boolean parameter
+            bool_props = [
+                k for k, v in props.items()
+                if isinstance(v, dict) and v.get("type") == "boolean"
+            ]
+            if len(bool_props) == 1:
+                bool_param = bool_props[0]
+                other_req = [p for p in req_params if p != bool_param]
+                if not other_req:
+                    entities.append(
+                        MCPHubDynamicToolSwitch(
+                            coordinator=coordinator,
+                            client=client,
+                            entry=entry,
+                            server_name=name,
+                            tool=tool,
+                            param_name=bool_param,
+                        )
+                    )
+
     async_add_entities(entities)
 
 
@@ -112,3 +141,80 @@ class MCPHubServerEnableSwitch(CoordinatorEntity[MCPHubCoordinator], SwitchEntit
         if self.is_on:
             await self._client.async_toggle_server(self._server_name)
             await self.coordinator.async_request_refresh()
+
+
+class MCPHubDynamicToolSwitch(CoordinatorEntity[MCPHubCoordinator], SwitchEntity):
+    """Dynamic switch controlling a boolean parameter tool."""
+
+    def __init__(
+        self,
+        coordinator: MCPHubCoordinator,
+        client: MCPHubClient,
+        entry: ConfigEntry,
+        server_name: str,
+        tool: dict[str, Any],
+        param_name: str,
+    ) -> None:
+        """Initialize the dynamic tool switch."""
+        super().__init__(coordinator)
+        self._client = client
+        self._server_name = server_name
+        self._tool = tool
+        self._param_name = param_name
+        self._is_on = False
+
+        tool_name = tool.get("name", "")
+        clean_name = (
+            tool_name.replace(f"{server_name}-", "")
+            .replace(f"{server_name}_", "")
+            .replace("_", " ")
+            .title()
+        )
+        param_clean = param_name.replace("_", " ").title()
+
+        self.entity_description = SwitchEntityDescription(
+            key=f"{tool_name}_{param_name}",
+            name=f"{clean_name} ({param_clean})",
+            icon="mdi:toggle-switch",
+        )
+        self._attr_unique_id = f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        self._attr_has_entity_name = True
+
+        server_data = self._get_server_data() or {}
+        self._attr_device_info = get_server_device_info(entry, server_name, server_data)
+
+    def _get_server_data(self) -> dict[str, Any] | None:
+        """Get the latest data for this server."""
+        if not self.coordinator.data:
+            return None
+        for server in self.coordinator.data.get(ATTR_SERVERS, []):
+            if server.get("name") == self._server_name:
+                return server
+        return None
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if the switch is on."""
+        return self._is_on
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on by calling tool with true."""
+        self._is_on = True
+        self.async_write_ha_state()
+        tool_name = self._tool.get("name", "")
+        await self._client.async_call_tool(
+            server=self._server_name,
+            tool_name=tool_name,
+            arguments={self._param_name: True},
+        )
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off by calling tool with false."""
+        self._is_on = False
+        self.async_write_ha_state()
+        tool_name = self._tool.get("name", "")
+        await self._client.async_call_tool(
+            server=self._server_name,
+            tool_name=tool_name,
+            arguments={self._param_name: False},
+        )

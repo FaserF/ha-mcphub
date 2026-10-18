@@ -279,6 +279,7 @@ ha_const.Platform = types.SimpleNamespace(
     SELECT="select",
     SWITCH="switch",
     IMAGE="image",
+    NOTIFY="notify",
 )
 ha_const.CONF_NAME = "name"
 ha_const.EntityCategory = types.SimpleNamespace(
@@ -423,6 +424,23 @@ class MockSwitchEntity(MockEntity):
 
 switch_module.SwitchEntity = MockSwitchEntity
 switch_module.SwitchEntityDescription = MockEntityDescription
+
+# Notify module
+mock_submodule("homeassistant.components.notify")
+notify_module = sys.modules["homeassistant.components.notify"]
+
+
+class MockNotifyEntity(MockEntity):
+    async def async_send_message(
+        self,
+        message: str,
+        title: str | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        pass
+
+
+notify_module.NotifyEntity = MockNotifyEntity
 
 # Image module
 image_module = sys.modules["homeassistant.components.image"]
@@ -642,7 +660,7 @@ def mock_config_entry() -> MagicMock:
     entry.version = 1
     entry.title = "MCPHub Gateway"
     entry.data = {
-        "api_url": "http://mcphub.tailnet.fabiseitz.de:3000",
+        "api_url": "http://localhost:3000",
         "api_key": "test_mcphub_token",
         "default_group": "$smart",
     }

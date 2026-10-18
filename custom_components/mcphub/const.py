@@ -11,7 +11,7 @@ DOMAIN: Final = "mcphub"
 LOGGER: Final = logging.getLogger(__package__)
 
 DEFAULT_NAME: Final = "MCPHub Gateway"
-DEFAULT_API_URL: Final = "http://mcphub.tailnet.fabiseitz.de:3000"
+DEFAULT_API_URL: Final = "http://localhost:3000"
 DEFAULT_MANUFACTURER: Final = "MCPHub"
 DEFAULT_MODEL: Final = "Model Context Protocol Gateway"
 
@@ -30,7 +30,7 @@ DEFAULT_DEFAULT_GROUP: Final = "$smart"
 DEFAULT_POLL_INTERVAL: Final = 30
 DEFAULT_AUTO_IMPORT_NEW: Final = True
 
-# Known native or existing integrations in Fabian's setup to warn or unselect by default
+# Known native or existing integrations to warn or unselect by default
 KNOWN_DUPLICATE_SERVERS: Final[dict[str, str]] = {
     "home-assistant": "Native Home Assistant Instance",
     "omniroute": "ha-omniroute integration",
@@ -44,18 +44,7 @@ KNOWN_DUPLICATE_SERVERS: Final[dict[str, str]] = {
 }
 
 # Known web URLs for visit device actions
-SERVER_VISIT_URLS: Final[dict[str, str]] = {
-    "mcphub": "http://mcphub.tailnet.fabiseitz.de:3000",
-    "omniroute": "http://omniroute.tailnet.fabiseitz.de:20128",
-    "shielddns": "https://dns.fabiseitz.de",
-    "komodo": "https://komodo.tailnet.fabiseitz.de",
-    "paseo": "http://code.tailnet.fabiseitz.de:6767",
-    "jellyfin": "http://code.tailnet.fabiseitz.de:8096",
-    "media-arr": "http://code.tailnet.fabiseitz.de:7878",
-    "paperless": "https://paperless.tailnet.fabiseitz.de",
-    "entramirror": "https://entra.tailnet.fabiseitz.de",
-    "jarvis": "http://jarvis.tailnet.fabiseitz.de:8090",
-}
+SERVER_VISIT_URLS: Final[dict[str, str]] = {}
 
 # Supported platforms
 PLATFORMS: Final[list[Platform]] = [
@@ -63,6 +52,8 @@ PLATFORMS: Final[list[Platform]] = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.SWITCH,
+    Platform.NOTIFY,
+    Platform.SELECT,
 ]
 
 # Service definitions
