@@ -355,24 +355,45 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
     async def _execute_action(
         self, action_key: str, action_params: dict[str, Any] | None = None
     ) -> None:
-        """Execute a mapped action."""
+        """Execute a mapped action with automatic ADB fallback."""
         action_mapping = self._entity_cfg.actions.get(action_key)
-        if not action_mapping:
-            _LOGGER.warning("Action %s not mapped for %s", action_key, self.entity_id)
-            return
-
-        ctx = dict(action_params or {})
         dev_ctx = dict(self._device_data)
         if "serial" in dev_ctx and "device" not in dev_ctx:
             dev_ctx["device"] = dev_ctx["serial"]
 
-        await async_execute_mapping_action(
-            self._client,
-            action_mapping,
-            self._mapping.server_name,
-            dev_ctx,
-            ctx,
-        )
+        if action_mapping:
+            ctx = dict(action_params or {})
+            await async_execute_mapping_action(
+                self._client,
+                action_mapping,
+                self._mapping.server_name,
+                dev_ctx,
+                ctx,
+            )
+        elif self._mapping.server_name == "android-adb":
+            cmd_map = {
+                "play": "MEDIA_PLAY",
+                "pause": "MEDIA_PAUSE",
+                "play_pause": "MEDIA_PLAY_PAUSE",
+                "stop": "MEDIA_STOP",
+                "next_track": "MEDIA_NEXT",
+                "previous_track": "MEDIA_PREVIOUS",
+                "turn_on": "WAKEUP",
+                "turn_off": "SLEEP",
+            }
+            if action_key in cmd_map:
+                await self._client.async_call_tool(
+                    "android-adb",
+                    "adb_keyevent",
+                    {"device": dev_ctx.get("serial", ""), "keycode": cmd_map[action_key]},
+                )
+            else:
+                _LOGGER.warning("Action %s not mapped for %s", action_key, self.entity_id)
+                return
+        else:
+            _LOGGER.warning("Action %s not mapped for %s", action_key, self.entity_id)
+            return
+
         if action_key == "turn_on":
             self._attr_state = MediaPlayerState.ON
         elif action_key == "turn_off":
@@ -381,8 +402,20 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
             self._attr_state = MediaPlayerState.PLAYING
         elif action_key == "pause":
             self._attr_state = MediaPlayerState.PAUSED
+        elif action_key == "play_pause":
+            self._attr_state = (
+                MediaPlayerState.PAUSED
+                if self._attr_state == MediaPlayerState.PLAYING
+                else MediaPlayerState.PLAYING
+            )
         elif action_key == "stop":
             self._attr_state = MediaPlayerState.IDLE
+
+        if self._mapping.server_name == "android-adb":
+            try:
+                await self.async_update()
+            except Exception:
+                pass
 
         if self.hass:
             self.async_write_ha_state()
@@ -406,6 +439,15 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
     async def async_media_pause(self) -> None:
         """Send pause command."""
         await self._execute_action("pause")
+
+    async def async_media_play_pause(self) -> None:
+        """Send play/pause toggle command."""
+        if "play_pause" in self._entity_cfg.actions:
+            await self._execute_action("play_pause")
+        elif self._attr_state == MediaPlayerState.PLAYING:
+            await self.async_media_pause()
+        else:
+            await self.async_media_play()
 
     async def async_media_stop(self) -> None:
         """Send stop command."""

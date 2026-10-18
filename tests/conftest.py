@@ -219,8 +219,12 @@ class MockOptionsFlow:
     """Mock OptionsFlow."""
 
     def __init__(self, config_entry: Any = None) -> None:
-        self.config_entry = config_entry
+        self._config_entry = config_entry
         self.hass: Any = None
+
+    @property
+    def config_entry(self) -> Any:
+        return self._config_entry
 
     def async_show_form(
         self,
@@ -639,6 +643,19 @@ dt_module = sys.modules["homeassistant.util.dt"]
 import datetime
 
 dt_module.utcnow = lambda: datetime.datetime.now(datetime.UTC)
+
+
+def mock_parse_datetime(dt_str: str) -> datetime.datetime | None:
+    try:
+        return datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+dt_module.parse_datetime = mock_parse_datetime
+dt_module.utc_from_timestamp = lambda ts: datetime.datetime.fromtimestamp(
+    float(ts), datetime.UTC
+)
 
 
 # Diagnostics module

@@ -75,60 +75,53 @@ DEFAULT_ADB_MAPPING_DICT: dict[str, Any] = {
             "source_list": ADB_APP_MAP,
             "actions": {
                 "turn_on": {
-                    "tool": "adb_power_toggle",
-                    "args_template": {"serial": "{{ device.serial }}"},
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "WAKEUP"},
                 },
                 "turn_off": {
-                    "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "POWER"},
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "SLEEP"},
                 },
                 "play": {
-                    "tool": "adb_key",
-                    "args_template": {
-                        "serial": "{{ device.serial }}",
-                        "key": "MEDIA_PLAY",
-                    },
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PLAY"},
                 },
                 "pause": {
-                    "tool": "adb_key",
-                    "args_template": {
-                        "serial": "{{ device.serial }}",
-                        "key": "MEDIA_PAUSE",
-                    },
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PAUSE"},
+                },
+                "play_pause": {
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PLAY_PAUSE"},
                 },
                 "stop": {
-                    "tool": "adb_key",
-                    "args_template": {
-                        "serial": "{{ device.serial }}",
-                        "key": "MEDIA_STOP",
-                    },
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_STOP"},
                 },
                 "next_track": {
-                    "tool": "adb_key",
-                    "args_template": {
-                        "serial": "{{ device.serial }}",
-                        "key": "MEDIA_NEXT",
-                    },
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_NEXT"},
                 },
                 "previous_track": {
-                    "tool": "adb_key",
-                    "args_template": {
-                        "serial": "{{ device.serial }}",
-                        "key": "MEDIA_PREVIOUS",
-                    },
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "MEDIA_PREVIOUS"},
                 },
                 "volume_up": {
-                    "tool": "adb_volume_up",
-                    "args_template": {"serial": "{{ device.serial }}"},
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "VOLUME_UP"},
                 },
                 "volume_down": {
-                    "tool": "adb_volume_down",
-                    "args_template": {"serial": "{{ device.serial }}"},
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "VOLUME_DOWN"},
+                },
+                "volume_mute": {
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "VOLUME_MUTE"},
                 },
                 "select_source": {
                     "tool": "adb_app_launch",
                     "args_template": {
-                        "app": "{{ action.source }}",
+                        "app": "{{ action.app }}",
                         "device": "{{ device.serial }}",
                     },
                 },
@@ -140,12 +133,12 @@ DEFAULT_ADB_MAPPING_DICT: dict[str, Any] = {
             "name": "Remote",
             "actions": {
                 "turn_on": {
-                    "tool": "adb_power_toggle",
-                    "args_template": {"serial": "{{ device.serial }}"},
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "WAKEUP"},
                 },
                 "turn_off": {
-                    "tool": "adb_key",
-                    "args_template": {"serial": "{{ device.serial }}", "key": "POWER"},
+                    "tool": "adb_keyevent",
+                    "args_template": {"device": "{{ device.serial }}", "keycode": "SLEEP"},
                 },
                 "send_command": {
                     "tool": "adb_keyevent",
@@ -256,6 +249,67 @@ DEFAULT_PRINTER_MAPPING_DICT: dict[str, Any] = {
                 "press": {
                     "tool": "printer_power_on",
                     "args_template": {"wait_for_online": True},
+                },
+            },
+        },
+        {
+            "platform": "binary_sensor",
+            "key": "media_empty",
+            "name": "Papier leer",
+            "device_class": "problem",
+            "value_path": "flags.media_empty",
+        },
+        {
+            "platform": "binary_sensor",
+            "key": "media_jam",
+            "name": "Papierstau",
+            "device_class": "problem",
+            "value_path": "flags.media_jam",
+        },
+        {
+            "platform": "binary_sensor",
+            "key": "cover_open",
+            "name": "Klappe offen",
+            "device_class": "door",
+            "value_path": "flags.cover_open",
+        },
+        {
+            "platform": "binary_sensor",
+            "key": "adf_loaded",
+            "name": "Dokumenteneinzug (ADF) geladen",
+            "device_class": "occupancy",
+            "value_path": "flags.adf_loaded",
+        },
+        {
+            "platform": "button",
+            "key": "scan_to_paperless",
+            "name": "Dokument Scannen & an Paperless senden",
+            "actions": {
+                "press": {
+                    "tool": "printer_scan",
+                    "args_template": {
+                        "source": "Platen",
+                        "color_mode": "RGB24",
+                        "resolution": 300,
+                        "upload_to_paperless": True,
+                    },
+                },
+            },
+        },
+        {
+            "platform": "button",
+            "key": "scan_adf_to_paperless",
+            "name": "Einzug (ADF) Scannen & an Paperless senden",
+            "actions": {
+                "press": {
+                    "tool": "printer_scan",
+                    "args_template": {
+                        "source": "Feeder",
+                        "color_mode": "RGB24",
+                        "resolution": 300,
+                        "duplex": True,
+                        "upload_to_paperless": True,
+                    },
                 },
             },
         },

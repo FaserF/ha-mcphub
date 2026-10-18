@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 from typing import Any
 
@@ -17,6 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_CONNECTED_SERVERS,
@@ -450,7 +452,9 @@ class MCPHubMappedSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
                 self._attr_native_value = (
                     self._mapping.offline_policy.default_state_when_offline
                 )
-            elif st_str == "measurement":
+            elif cls_str == "timestamp":
+                self._attr_native_value = None
+            elif st_str in ("measurement", "total", "total_increasing"):
                 self._attr_native_value = None
             self._attr_available = self._mapping.offline_policy.available_when_offline
             return
@@ -460,11 +464,36 @@ class MCPHubMappedSensor(CoordinatorEntity[MCPHubCoordinator], SensorEntity):
             self._collection_item if self._collection_item else self._device_data
         )
         raw_val = get_nested_value(source_data, self._entity_cfg.value_path)
-        self._attr_native_value = (
+        val = (
             self._entity_cfg.state_map.get(raw_val, raw_val)
             if self._entity_cfg.state_map
             else raw_val
         )
+
+        if cls_str == "timestamp":
+            if val is None or val == "":
+                self._attr_native_value = None
+            elif isinstance(val, (int, float)):
+                self._attr_native_value = dt_util.utc_from_timestamp(float(val))
+            elif isinstance(val, str):
+                parsed = dt_util.parse_datetime(val)
+                self._attr_native_value = parsed if parsed is not None else None
+            elif isinstance(val, datetime):
+                self._attr_native_value = val
+            else:
+                self._attr_native_value = None
+        elif st_str in ("measurement", "total", "total_increasing"):
+            if val is None or val == "":
+                self._attr_native_value = None
+            else:
+                try:
+                    self._attr_native_value = (
+                        int(val) if str(val).isdigit() else float(val)
+                    )
+                except (ValueError, TypeError):
+                    self._attr_native_value = val
+        else:
+            self._attr_native_value = val
 
         if self._entity_cfg.attributes:
             attrs: dict[str, Any] = {}

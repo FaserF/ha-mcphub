@@ -184,7 +184,7 @@ async def test_media_player_control_actions(
     # Source selection (YouTube)
     await player.async_select_source("YouTube")
     assert player.source == "YouTube"
-    mock_client.async_call_tool.assert_called_with(
+    mock_client.async_call_tool.assert_any_call(
         "android-adb",
         "adb_app_launch",
         {"app": "com.google.android.youtube.tv", "device": "192.168.1.85:5555"},

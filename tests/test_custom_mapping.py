@@ -136,6 +136,39 @@ def test_printer_device_info_and_sensor_offline(mock_config_entry: MagicMock) ->
     assert marker_sensor.extra_state_attributes["marker_type"] == "toner"
     assert marker_sensor.extra_state_attributes["color"] == "#000000"
 
+    # Uptime timestamp sensor when offline -> native_value is None
+    uptime_entity_cfg = next(e for e in printer_map.entities if e.key == "uptime")
+    uptime_offline_sensor = MCPHubMappedSensor(
+        coordinator, mock_config_entry, printer_map, uptime_entity_cfg, offline_payload
+    )
+    assert uptime_offline_sensor.native_value is None
+    assert uptime_offline_sensor.available is True
+
+    # Uptime timestamp sensor when online -> parsed to datetime
+    from datetime import datetime
+    online_payload["booted_at"] = "2026-10-18T14:30:00Z"
+    uptime_online_sensor = MCPHubMappedSensor(
+        coordinator, mock_config_entry, printer_map, uptime_entity_cfg, online_payload
+    )
+    assert isinstance(uptime_online_sensor.native_value, datetime)
+    assert uptime_online_sensor.available is True
+
+    # Binary sensor (media_empty / cover_open)
+    from custom_components.mcphub.binary_sensor import MCPHubMappedBinarySensor
+    paper_cfg = next(e for e in printer_map.entities if e.key == "media_empty")
+    paper_offline = MCPHubMappedBinarySensor(
+        coordinator, mock_config_entry, printer_map, paper_cfg, offline_payload
+    )
+    assert paper_offline.is_on is False
+    assert paper_offline.available is True
+
+    online_payload["flags"] = {"media_empty": True, "cover_open": False}
+    paper_online = MCPHubMappedBinarySensor(
+        coordinator, mock_config_entry, printer_map, paper_cfg, online_payload
+    )
+    assert paper_online.is_on is True
+    assert paper_online.available is True
+
 
 @pytest.mark.asyncio
 async def test_printer_power_switch(
