@@ -133,7 +133,9 @@ class MCPHubDynamicToolSelect(CoordinatorEntity[MCPHubCoordinator], SelectEntity
             name=f"{clean_name} ({param_clean})",
             icon="mdi:form-select",
         )
-        self._attr_unique_id = f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        )
         self._attr_has_entity_name = True
 
         server_data = self._get_server_data() or {}
@@ -156,7 +158,9 @@ class MCPHubDynamicToolSelect(CoordinatorEntity[MCPHubCoordinator], SelectEntity
     async def async_select_option(self, option: str) -> None:
         """Change the selected option and execute the MCP tool."""
         if option not in self.options:
-            raise ValueError(f"Invalid option: {option}. Expected one of {self.options}")
+            raise ValueError(
+                f"Invalid option: {option}. Expected one of {self.options}"
+            )
 
         self._current_option = option
         self.async_write_ha_state()

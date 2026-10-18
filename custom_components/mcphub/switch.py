@@ -69,7 +69,8 @@ async def async_setup_entry(
 
             # Check if there is a single boolean parameter
             bool_props = [
-                k for k, v in props.items()
+                k
+                for k, v in props.items()
                 if isinstance(v, dict) and v.get("type") == "boolean"
             ]
             if len(bool_props) == 1:
@@ -177,7 +178,9 @@ class MCPHubDynamicToolSwitch(CoordinatorEntity[MCPHubCoordinator], SwitchEntity
             name=f"{clean_name} ({param_clean})",
             icon="mdi:toggle-switch",
         )
-        self._attr_unique_id = f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        )
         self._attr_has_entity_name = True
 
         server_data = self._get_server_data() or {}
