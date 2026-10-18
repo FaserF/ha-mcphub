@@ -34,15 +34,19 @@ def get_server_device_info(
     """Return DeviceInfo for an individual registered MCP server."""
     cfg = (server_data or {}).get("config") or {}
     vis_url = SERVER_VISIT_URLS.get(server_name) or cfg.get("url")
-    version = (server_data or {}).get("version", "1.0.0")
+    version_raw = (server_data or {}).get("version")
+    version = str(version_raw).strip() if version_raw else None
     transport = str(cfg.get("type", "stdio")).upper()
 
-    return DeviceInfo(
-        identifiers={(DOMAIN, f"{entry.entry_id}_{server_name}")},
-        via_device=(DOMAIN, entry.entry_id),
-        name=f"MCP {server_name.replace('-', ' ').title()}",
-        manufacturer="MCP Server Ecosystem",
-        model=f"MCP {transport} Service",
-        sw_version=version,
-        configuration_url=vis_url,
-    )
+    device_kwargs: dict[str, Any] = {
+        "identifiers": {(DOMAIN, f"{entry.entry_id}_{server_name}")},
+        "via_device": (DOMAIN, entry.entry_id),
+        "name": f"MCP {server_name.replace('-', ' ').title()}",
+        "manufacturer": "MCP Server Ecosystem",
+        "model": f"MCP {transport} Service",
+        "configuration_url": vis_url,
+    }
+    if version:
+        device_kwargs["sw_version"] = version
+
+    return DeviceInfo(**device_kwargs)

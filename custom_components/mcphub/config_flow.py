@@ -30,6 +30,7 @@ from .const import (
     DEFAULT_NAME,
     DEFAULT_POLL_INTERVAL,
     DOMAIN,
+    HACS_DEFAULT_INTEGRATIONS_URL,
     detect_duplicate_conflict,
 )
 
@@ -111,6 +112,16 @@ class MCPHubConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
+        # Try to fetch live HACS default integrations list with timeout
+        hacs_catalog: list[str] | None = None
+        try:
+            session = async_get_clientsession(self.hass)
+            async with session.get(HACS_DEFAULT_INTEGRATIONS_URL, timeout=3) as resp:
+                if resp.status == 200:
+                    hacs_catalog = await resp.json(content_type=None)
+        except Exception as err:
+            _LOGGER.debug("Could not fetch live HACS catalog: %s", err)
+
         # Build options dictionary for multiselect
         server_options: dict[str, str] = {}
         defaults: list[str] = []
@@ -120,7 +131,7 @@ class MCPHubConfigFlow(ConfigFlow, domain=DOMAIN):
             if not name:
                 continue
             tools_cnt = len(server.get("tools", []))
-            conflict_desc = detect_duplicate_conflict(name)
+            conflict_desc = detect_duplicate_conflict(name, hacs_catalog)
             dup_notice = f" ⚠️ ({conflict_desc})" if conflict_desc else ""
             server_options[name] = f"{name} ({tools_cnt} Tools){dup_notice}"
 

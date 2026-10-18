@@ -84,30 +84,80 @@ KNOWN_DUPLICATE_SERVERS: Final[dict[str, str]] = {
     "hue": "Official Philips Hue Integration",
     "tradfri": "Official IKEA Trådfri Integration",
     "tuya": "Official Tuya / Smart Life Integration",
-    "matter": "Official Matter Integration",
-    # Custom & Specialized Integrations
-    "omniroute": "ha-omniroute integration",
-    "shielddns": "ha-shielddns integration",
-    "komodo": "ha-komodo integration",
-    "aegisbot": "ha-aegisbot integration",
-    "paseo": "ha-paseo integration",
-    "google-jules": "ha-jules integration",
+    # Custom & Community Integrations
+    "omniroute": "Custom Integration (ha-omniroute)",
+    "shielddns": "Custom Integration (ha-shielddns)",
+    "komodo": "Custom Integration (ha-komodo)",
+    "aegisbot": "Custom Integration (ha-aegisbot)",
+    "paseo": "Custom Integration (ha-paseo)",
+    "google-jules": "Custom Integration (ha-jules)",
+    "jules": "Custom Integration (ha-jules)",
+    "hermes": "Custom Integration (ha-hermes)",
+    "hermes-agent": "Custom Integration (ha-hermes-agent)",
+    "boulderwelt": "Custom Integration (ha-boulderwelt)",
+    "chefkoch": "Custom Integration (ha-chefkoch)",
+    "db_infoscreen": "Custom Integration (ha-db_infoscreen)",
+    "deutschebahn": "Custom Integration (ha-deutschebahn)",
+    "bahnvorhersage": "Custom Integration (ha-bahnvorhersage)",
+    "edeka": "Custom Integration (ha-edeka)",
+    "foodsharing": "Custom Integration (ha-foodsharing)",
+    "kadermanager": "Custom Integration (ha-kadermanager)",
+    "lidl": "Custom Integration (ha-lidl)",
+    "traderepublic": "Custom Integration (ha-traderepublic)",
+    "whatsapp": "Custom Integration (ha-whatsapp)",
+    "pepper": "Custom Integration (ha-pepper)",
+    "crunchyroll": "Custom Integration (ha-crunchyroll)",
+    "oraclecloud": "Custom Integration (ha-oraclecloud)",
+    "dhl": "Custom Integration (ha-dhl)",
+    "moneymanager": "Custom Integration (ha-moneymanager)",
+    "penny": "Custom Integration (ha-penny)",
+    "wurstserver": "Custom Integration (ha-wurstserver)",
+    "eversports": "Custom Integration (ha-eversports)",
+    "zorneding": "Custom Integration (ha-zorneding)",
+    "dieliga": "Custom Integration (ha-dieliga)",
+    "phoenixbad": "Custom Integration (ha-phoenixbad)",
+    "aldi": "Custom Integration (ha-aldi)",
+    "norma": "Custom Integration (ha-norma)",
+    "keyforsteam": "Custom Integration (ha-keyforsteam)",
+    "rewe": "Custom Integration (ha-rewe)",
+    "ctgpdx": "Custom Integration (ha-ctgpdx)",
+    "nintendoswitch": "Custom Integration (ha-NintendoSwitchCFW)",
+    "valetudo": "Custom Integration (hass-valetudo)",
+    "prismatik": "Custom Integration (home-assistant-prismatik)",
+    "tasmota-fwupdate": "Custom Integration (ha-tasmota-fwupdate)",
+    "teamtracker": "Custom Integration (ha-teamtracker)",
+    "github-release-tracker": "Custom Integration (ha-github-release-tracker)",
+    "dwd-illuminance": "Custom Integration (dwd-illuminance)",
 }
 
+HACS_DEFAULT_INTEGRATIONS_URL: Final = (
+    "https://raw.githubusercontent.com/hacs/default/refs/heads/master/integration"
+)
 
-def detect_duplicate_conflict(server_name: str) -> str | None:
+
+def detect_duplicate_conflict(
+    server_name: str, hacs_catalog: list[str] | None = None
+) -> str | None:
     """Detect if an MCP server name conflicts with an official or custom HA integration."""
-    normalized = server_name.lower().strip()
-    # Direct match
+    normalized = server_name.lower().strip().replace("_", "-")
+
+    # Direct match in known catalog
     if normalized in KNOWN_DUPLICATE_SERVERS:
         return KNOWN_DUPLICATE_SERVERS[normalized]
 
     # Prefix or sub-server matching (e.g. google-jules-* or media-arr-*)
     for key, description in KNOWN_DUPLICATE_SERVERS.items():
-        if normalized.startswith(f"{key}-") or normalized.startswith(f"{key}_"):
+        if normalized.startswith(f"{key}-"):
             return description
-        if f"-{key}" in normalized or f"_{key}" in normalized:
+        if f"-{key}" in normalized:
             return description
+
+    # Live HACS catalog inspection if provided
+    if hacs_catalog:
+        for repo in hacs_catalog:
+            repo_name = repo.split("/")[-1].lower().replace("ha-", "").replace("hass-", "")
+            if normalized == repo_name or normalized.startswith(f"{repo_name}-"):
+                return f"HACS Integration ({repo})"
 
     return None
 
@@ -123,6 +173,10 @@ PLATFORMS: Final[list[Platform]] = [
     Platform.SWITCH,
     Platform.NOTIFY,
     Platform.SELECT,
+    Platform.TEXT,
+    Platform.NUMBER,
+    Platform.UPDATE,
+    Platform.IMAGE,
 ]
 
 # Service definitions

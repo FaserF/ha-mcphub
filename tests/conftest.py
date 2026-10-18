@@ -63,6 +63,9 @@ class MockEntityDescription:
     native_unit_of_measurement: str | None = None
     state_class: Any = None
     options: list[str] | None = None
+    native_min_value: float | None = None
+    native_max_value: float | None = None
+    native_step: float | None = None
 
 
 class MockEntity:
@@ -264,6 +267,10 @@ mock_submodule("homeassistant.components.image")
 mock_submodule("homeassistant.components.camera")
 mock_submodule("homeassistant.components.diagnostics")
 mock_submodule("homeassistant.components.conversation")
+mock_submodule("homeassistant.components.text")
+mock_submodule("homeassistant.components.number")
+mock_submodule("homeassistant.components.update")
+mock_submodule("homeassistant.util.dt")
 mock_submodule("homeassistant.helpers.device_registry")
 mock_submodule("homeassistant.helpers.entity_registry")
 
@@ -280,6 +287,9 @@ ha_const.Platform = types.SimpleNamespace(
     SWITCH="switch",
     IMAGE="image",
     NOTIFY="notify",
+    TEXT="text",
+    NUMBER="number",
+    UPDATE="update",
 )
 ha_const.CONF_NAME = "name"
 ha_const.EntityCategory = types.SimpleNamespace(
@@ -452,6 +462,73 @@ class MockImageEntity(MockEntity):
 
 
 image_module.ImageEntity = MockImageEntity
+
+# Text module
+text_module = sys.modules["homeassistant.components.text"]
+
+
+class MockTextEntity(MockEntity):
+    _attr_native_value: str = ""
+
+    @property
+    def native_value(self) -> str:
+        return self._attr_native_value
+
+    async def async_set_value(self, value: str) -> None:
+        self._attr_native_value = value
+
+
+text_module.TextEntity = MockTextEntity
+text_module.TextEntityDescription = MockEntityDescription
+
+# Number module
+num_module = sys.modules["homeassistant.components.number"]
+
+
+class MockNumberEntity(MockEntity):
+    _attr_native_value: float = 0.0
+
+    @property
+    def native_value(self) -> float:
+        return self._attr_native_value
+
+    async def async_set_native_value(self, value: float) -> None:
+        self._attr_native_value = value
+
+
+num_module.NumberEntity = MockNumberEntity
+num_module.NumberEntityDescription = MockEntityDescription
+
+# Update module
+upd_module = sys.modules["homeassistant.components.update"]
+
+
+class MockUpdateEntity(MockEntity):
+    _attr_installed_version: str | None = None
+    _attr_latest_version: str | None = None
+
+    @property
+    def installed_version(self) -> str | None:
+        return self._attr_installed_version
+
+    @property
+    def latest_version(self) -> str | None:
+        return self._attr_latest_version
+
+    async def async_install(self, version: str | None, backup: bool, **kwargs: Any) -> None:
+        pass
+
+
+upd_module.UpdateEntity = MockUpdateEntity
+upd_module.UpdateEntityDescription = MockEntityDescription
+upd_module.UpdateDeviceClass = types.SimpleNamespace(FIRMWARE="firmware")
+upd_module.UpdateEntityFeature = types.SimpleNamespace(INSTALL=1, PROGRESS=2)
+
+# dt_util
+dt_module = sys.modules["homeassistant.util.dt"]
+import datetime
+
+dt_module.utcnow = lambda: datetime.datetime.now(datetime.UTC)
 
 
 # Diagnostics module
