@@ -69,7 +69,10 @@ async def async_setup_entry(
             tool_name = tool.get("name", "")
             tool_lower = tool_name.lower()
 
-            if any(term in tool_lower for term in ("screenshot", "snapshot", "capture_screen")):
+            if any(
+                term in tool_lower
+                for term in ("screenshot", "snapshot", "capture_screen")
+            ):
                 entities.append(
                     MCPHubDynamicToolImage(
                         hass=hass,

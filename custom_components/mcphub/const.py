@@ -155,7 +155,9 @@ def detect_duplicate_conflict(
     # Live HACS catalog inspection if provided
     if hacs_catalog:
         for repo in hacs_catalog:
-            repo_name = repo.split("/")[-1].lower().replace("ha-", "").replace("hass-", "")
+            repo_name = (
+                repo.split("/")[-1].lower().replace("ha-", "").replace("hass-", "")
+            )
             if normalized == repo_name or normalized.startswith(f"{repo_name}-"):
                 return f"HACS Integration ({repo})"
 

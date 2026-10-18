@@ -515,7 +515,9 @@ class MockUpdateEntity(MockEntity):
     def latest_version(self) -> str | None:
         return self._attr_latest_version
 
-    async def async_install(self, version: str | None, backup: bool, **kwargs: Any) -> None:
+    async def async_install(
+        self, version: str | None, backup: bool, **kwargs: Any
+    ) -> None:
         pass
 
 

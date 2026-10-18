@@ -70,7 +70,8 @@ async def async_setup_entry(
 
             # Check for single integer/number parameter
             num_props = [
-                k for k, v in props.items()
+                k
+                for k, v in props.items()
                 if isinstance(v, dict) and v.get("type") in ("integer", "number")
             ]
             if len(num_props) == 1 and (not req_params or req_params == num_props):
@@ -140,7 +141,9 @@ class MCPHubDynamicToolNumber(CoordinatorEntity[MCPHubCoordinator], NumberEntity
             native_step=step,
             icon="mdi:numeric",
         )
-        self._attr_unique_id = f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        )
         self._attr_has_entity_name = True
 
         server_data = self._get_server_data() or {}
@@ -166,7 +169,12 @@ class MCPHubDynamicToolNumber(CoordinatorEntity[MCPHubCoordinator], NumberEntity
         self.async_write_ha_state()
 
         tool_name = self._tool.get("name", "")
-        param_type = self._tool.get("inputSchema", {}).get("properties", {}).get(self._param_name, {}).get("type")
+        param_type = (
+            self._tool.get("inputSchema", {})
+            .get("properties", {})
+            .get(self._param_name, {})
+            .get("type")
+        )
         cast_val: int | float = int(value) if param_type == "integer" else float(value)
 
         args = {self._param_name: cast_val}

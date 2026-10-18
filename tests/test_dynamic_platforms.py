@@ -52,7 +52,9 @@ async def test_dynamic_text_platform(hass: HomeAssistant) -> None:
     }
 
     added_entities = []
-    await async_setup_text(hass, entry, lambda entities: added_entities.extend(entities))
+    await async_setup_text(
+        hass, entry, lambda entities: added_entities.extend(entities)
+    )
 
     assert len(added_entities) == 1
     text_entity = added_entities[0]
@@ -84,7 +86,12 @@ async def test_dynamic_number_platform(hass: HomeAssistant) -> None:
                         "inputSchema": {
                             "type": "object",
                             "properties": {
-                                "limit": {"type": "integer", "minimum": 10, "maximum": 500, "default": 50},
+                                "limit": {
+                                    "type": "integer",
+                                    "minimum": 10,
+                                    "maximum": 500,
+                                    "default": 50,
+                                },
                             },
                             "required": ["limit"],
                         },
@@ -107,7 +114,9 @@ async def test_dynamic_number_platform(hass: HomeAssistant) -> None:
     }
 
     added_entities = []
-    await async_setup_number(hass, entry, lambda entities: added_entities.extend(entities))
+    await async_setup_number(
+        hass, entry, lambda entities: added_entities.extend(entities)
+    )
 
     assert len(added_entities) == 1
     number_entity = added_entities[0]
@@ -161,7 +170,9 @@ async def test_dynamic_update_platform(hass: HomeAssistant) -> None:
     }
 
     added_entities = []
-    await async_setup_update(hass, entry, lambda entities: added_entities.extend(entities))
+    await async_setup_update(
+        hass, entry, lambda entities: added_entities.extend(entities)
+    )
 
     assert len(added_entities) == 1
     update_entity = added_entities[0]
@@ -211,7 +222,9 @@ async def test_dynamic_image_platform(hass: HomeAssistant) -> None:
     }
 
     added_entities = []
-    await async_setup_image(hass, entry, lambda entities: added_entities.extend(entities))
+    await async_setup_image(
+        hass, entry, lambda entities: added_entities.extend(entities)
+    )
 
     assert len(added_entities) == 1
     image_entity = added_entities[0]

@@ -146,7 +146,9 @@ class MCPHubServerUpdateEntity(CoordinatorEntity[MCPHubCoordinator], UpdateEntit
         for tool in tools:
             t_name = tool.get("name", "")
             if any(term in t_name.lower() for term in ("trigger_update", "upgrade")):
-                _LOGGER.info("Triggering update tool '%s' on '%s'", t_name, self._server_name)
+                _LOGGER.info(
+                    "Triggering update tool '%s' on '%s'", t_name, self._server_name
+                )
                 await self._client.async_call_tool(
                     server=self._server_name,
                     tool_name=t_name,

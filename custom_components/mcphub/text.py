@@ -70,15 +70,22 @@ async def async_setup_entry(
 
             # Check if there is exactly 1 string parameter that isn't an enum or covered by notify
             str_props = [
-                k for k, v in props.items()
+                k
+                for k, v in props.items()
                 if isinstance(v, dict) and v.get("type") == "string" and "enum" not in v
             ]
             if len(str_props) == 1 and (not req_params or req_params == str_props):
                 param_name = str_props[0]
                 # Skip if already handled by notify platform
-                if any(p in param_name.lower() for p in ("message", "text", "body", "content")):
+                if any(
+                    p in param_name.lower()
+                    for p in ("message", "text", "body", "content")
+                ):
                     tool_name_lower = tool.get("name", "").lower()
-                    if any(t in tool_name_lower for t in ("notify", "send_message", "post_message")):
+                    if any(
+                        t in tool_name_lower
+                        for t in ("notify", "send_message", "post_message")
+                    ):
                         continue
 
                 entities.append(
@@ -129,7 +136,9 @@ class MCPHubDynamicToolText(CoordinatorEntity[MCPHubCoordinator], TextEntity):
             name=f"{clean_name} ({param_clean})",
             icon="mdi:form-textbox",
         )
-        self._attr_unique_id = f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{server_name}_{tool_name}_{param_name}"
+        )
         self._attr_has_entity_name = True
 
         server_data = self._get_server_data() or {}
