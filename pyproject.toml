@@ -1,6 +1,6 @@
 [project]
 name = "ha-mcphub"
-version = "0.1.0b0"
+version = "1.0.1-dev0"
 description = "Home Assistant custom integration for MCPHub Central Gateway & Control Plane."
 authors = [
     {name = "FaserF", email = "github@fabiseitz.de"}
