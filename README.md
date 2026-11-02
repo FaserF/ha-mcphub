@@ -1,10 +1,10 @@
-<p align="center">
+﻿<p align="center">
   <img src="https://raw.githubusercontent.com/FaserF/ha-mcphub/main/brand/logo.png" alt="MCPHub Logo" width="380">
 </p>
 
 # MCPHub Gateway & Ecosystem Integration for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
+[![Home Assistant Marketplace](https://img.shields.io/badge/Home_Assistant-Marketplace-41BDF5.svg?style=flat-square&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
 [![CI](https://github.com/FaserF/ha-mcphub/actions/workflows/ci-orchestrator.yml/badge.svg)](https://github.com/FaserF/ha-mcphub/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/FaserF/ha-mcphub)](https://github.com/FaserF/ha-mcphub/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
