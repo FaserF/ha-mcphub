@@ -10,5 +10,6 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/FaserF/ha-mcphub/issues",
   "requirements": [],
-  "version": "1.0.1-dev0"
+  "version": "1.0.1-dev0",
+  "quality_scale": "platinum"
 }
