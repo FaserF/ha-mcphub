@@ -640,7 +640,7 @@ remote_module.RemoteEntityFeature = types.SimpleNamespace(
 
 # dt_util
 dt_module = sys.modules["homeassistant.util.dt"]
-import datetime
+import datetime  # noqa: E402
 
 dt_module.utcnow = lambda: datetime.datetime.now(datetime.UTC)
 

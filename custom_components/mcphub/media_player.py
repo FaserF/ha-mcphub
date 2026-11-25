@@ -185,7 +185,7 @@ class MCPHubMappedMediaPlayer(CoordinatorEntity[MCPHubCoordinator], MediaPlayerE
         else:
             self._attr_device_class = MediaPlayerDeviceClass.TV
 
-        features = 0
+        features: Any = 0
         actions = self._entity_cfg.actions
         if "turn_on" in actions:
             features |= MediaPlayerEntityFeature.TURN_ON

@@ -170,7 +170,14 @@ def sync_device_registry(
 
     try:
         dev_reg = dr.async_get(hass)
-        device_entry = dev_reg.async_get_device(identifiers=identifiers)
+        ident_tuple = (DOMAIN, f"{entry.entry_id}_{clean_id}")
+        if hasattr(dev_reg, "async_get_device_by_identifier"):
+            device_entry = dev_reg.async_get_device_by_identifier(
+                ident_tuple,
+                entry.entry_id,
+            )
+        else:
+            device_entry = dev_reg.async_get_device(identifiers=identifiers)
         if device_entry:
             update_kwargs: dict[str, Any] = {}
             if (
@@ -184,7 +191,8 @@ def sync_device_registry(
             if raw_sw and device_entry.sw_version != str(raw_sw):
                 update_kwargs["sw_version"] = str(raw_sw)
             if connections:
-                update_kwargs["merge_connections"] = connections
+                existing_conns = set(getattr(device_entry, "connections", ()) or ())
+                update_kwargs["new_connections"] = existing_conns | set(connections)
             if update_kwargs:
                 dev_reg.async_update_device(device_entry.id, **update_kwargs)
     except Exception as err:
